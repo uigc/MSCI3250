@@ -82,12 +82,14 @@ ggplot(combdRep, aes(x = winner, y = income, fill = winner)) +
   coord_flip()
 
 ## 4. Select a few candidates for visual analysis.
+# A reminder that further analyses is based on the 5 states we've chosen above.
 # We'll now focus on each candidate and their performance (fraction_votes) in
 # every county, not just the winners. First, select some 'big' candidates:
 candidates <- c('Donald Trump', 'Ted Cruz', 'Hillary Clinton', 'Bernie Sanders')
-cddList <- list()
 
 # Then, populate a list of each candidate with joined vote and demographic info:
+cddList <- list()
+
 for (i in candidates) {
   cddList[[match(i, candidates)]] <- filter(srcPrimary, candidate == i) %>%
     select(state = state_abbreviation, county = county, party = party,
@@ -143,8 +145,7 @@ cddPlotLog <- function(metric) {
 cddPlotLog('education')
 
 # Plot fraction_votes as a function of 'income'
-# Donald Trump's popularity drastically decreases as median household income
-# increases.
+# Donald Trump's popularity drastically decrease as household income increase.
 cddPlot('income')
 
 # Plot fraction_votes as a function of 'hispanic'
