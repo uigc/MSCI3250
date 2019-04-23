@@ -1,5 +1,6 @@
 ### Descriptive analysis
 library(dplyr)
+library(scales)
 library(ggplot2)
 library(cowplot)
 rm(list = ls())
@@ -28,15 +29,14 @@ for (i in levels(as.factor(srcPrimary$party))) {
 # EDU685213: Bachelor's degree or higher, percent of persons age 25+, 2009-2013
 # POP060210: Population per square mile, 2010
 # RHI825214: White alone, not Hispanic or Latino, percent, 2014
-# RHI225214: Black or African American alone, percent, 2014
 # RHI725214: Hispanic or Latino, percent, 2014
 # HSD310213: Persons per household, 2009-2013
 # 
 # We might be interested in certain states and not the whole nation.
-# The 'demogrSomeF' function simply returns the demographic data we have
+# The 'demogrSomeF()' function simply returns the demographic data we have
 # selected above for each county in states specified by the user.
-# 'demogrSomeF' function usage: Input state abbreviations (not full state names)
-# as function arguments. Quotations or capitalizations are not necessary.
+# 'demogrSomeF()' function usage: Input state abbreviations (not full state
+# names) as function arguments. Quotations or capitalizations are not necessary.
 demogrSomeF <- function(...) {
   states <- gsub('\"', '', toupper(sapply(substitute(list(...)), deparse)[-1]))
   
@@ -49,7 +49,7 @@ demogrSomeF <- function(...) {
   assign('demogrSome', demogrSome, envir = globalenv())
 }
 
-# We'll focus on 5 randomly picked Midwestern states for now:
+# We'll focus on 5 Midwestern states for now:
 demogrSomeF(IA, IL, MN, NE, MI)
 
 # For the whole nation, use:
@@ -59,7 +59,7 @@ demogrAll <- select(srcDemogr, state = state_abbreviation, county = area_name,
                     white = RHI825214, hispanic = RHI725214,  household = HSD310213) %>%
   mutate(county = gsub(' County', '', county))
 
-# For a simple visual of the primary winners for each party in each county,
+# For some simple visuals of the primary winners for each party in all counties,
 # join the winners with demographic data of our 5 chosen states.
 combdRep <- inner_join(demogrSome, votesRep, by = c('state', 'county'))
 combdDem <- inner_join(demogrSome, votesDem, by = c('state', 'county'))
@@ -73,13 +73,19 @@ winners <- group_by(combdAll, winner, party) %>%
 
 # Simple scatterplot of republican winners based on household and income:
 ggplot(combdRep, aes(x = income, y = household)) +
-  geom_point(aes(color = winner, size = votes))
+  geom_point(aes(color = winner, size = votes)) +
+	labs(y = 'Median Household Income', x = '% Persons with Bachelor\'s or higher') +
+	scale_color_discrete(combdRep$winner, name = 'Candidate') +
+	guides(size = FALSE)
 
 # Simple boxplot of republican winners and the income demographic they attract:
-# Notice how Donald Trump is more likely to win in lower income areas.
+# Notice that Donald Trump is more likely to win in areas of lower median income.
 ggplot(combdRep, aes(x = winner, y = income, fill = winner)) +
   geom_boxplot() +
-  coord_flip()
+	scale_y_continuous(labels = dollar) +
+	labs(y = 'Median Household Income', x = 'Candidate') +
+  coord_flip() +
+	theme(legend.position = 'none')
 
 ## 4. Select a few candidates for visual analysis.
 # A reminder that further analyses is based on the 5 states we've chosen above.
@@ -158,5 +164,21 @@ cddPlotLog('hispanic')
 cddPlot('household')
 
 ## 6. Some linear regression
-#
-summary(lm(fraction_votes~income + hispanic + household, data = cddList[[1]]))
+# Run a linear regression model of 'fraction_votes' as a function of 'income',
+# 'hispanic', and 'household.' Store the results for each candidate in a list.
+linRegResults <- list()
+
+for (i in candidates) {
+	linRegResults[[match(i, candidates)]] <-
+	summary(lm(fraction_votes~income + hispanic + household,
+						 data = cddList[[strsplit(i, ' ') %>%
+						 									sapply('[[', length(unlist(strsplit(i, ' '))))]]
+						 ))
+	
+	names(linRegResults)[match(i, candidates)] <- strsplit(i, ' ') %>%
+		sapply('[[', length(unlist(strsplit(i, ' '))))
+}
+
+# The results can accessed via each candidate's last name.
+linRegResults['Trump']
+
