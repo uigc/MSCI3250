@@ -50,15 +50,16 @@ demogrSomeF <- function(...) {
 demogrSomeF(IA, IL, MN, NE, MI)
 
 # For the whole nation, use:
+# We won't be working with nationwide demographic data yet.
 demogrAll <- select(srcDemogr, state = state_abbreviation, county = area_name,
                     income = INC110213, education = EDU685213, density = POP060210,
                     white = RHI825214, hispanic = RHI725214,  household = HSD310213) %>%
   mutate(county = gsub(' County', '', county))
 
-# Join vote and demographic data for further analysis
+# For a simple visual of the primary winners for each party in each county,
+# join the winners with demographic data of our 5 chosen states.
 combdRep <- inner_join(demogrSome, votesRep, by = c('state', 'county'))
 combdDem <- inner_join(demogrSome, votesDem, by = c('state', 'county'))
-
 combdAll <- rbind(combdRep, combdDem)
 
 winners <- group_by(combdAll, winner, party) %>%
@@ -74,9 +75,13 @@ ggplot(combdRep, aes(x = winner, y = household, fill = winner)) +
   coord_flip()
 
 ## 4. Select a few candidates for visual analysis
+# We'll now focus on each candidate and their performance (fraction_votes) in
+# every county, not just the winners.
+# First, select some 'big' candidates:
 candidates <- c('Donald Trump', 'Ted Cruz', 'Hillary Clinton', 'Bernie Sanders')
 cddList <- list()
 
+# Then, populate a list of each candidate with joined vote and demographic info
 for (i in candidates) {
   cddList[[match(i, candidates)]] <- filter(srcPrimary, candidate == i) %>%
     select(state = state_abbreviation, county = county, party = party,
