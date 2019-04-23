@@ -9,7 +9,8 @@ src.primary <- read.csv('primary_results.csv', stringsAsFactors = F)
 src.demogr <- read.csv('county_facts.csv', stringsAsFactors = F)
 src.dict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = F)
 
-## Extract winners and vote statistics
+## Extract winners and vote statistics in each county for each party
+# Two new objects: votesRep, votesDem
 for (i in levels(as.factor(src.primary$party))) {
   assign(paste('votes', substring(i, 1, 3), sep = ''),
          group_by(src.primary, state_abbreviation, county, party) %>%
@@ -30,9 +31,10 @@ for (i in levels(as.factor(src.primary$party))) {
 # RHI725214: Hispanic or Latino, percent, 2014
 # HSD310213: Persons per household, 2009-2013
 # 
-# 'demoTest' function usage: Input state abbreviations (not full state names)
+# We might be interested in certain states and not the whole nation.
+# 'demogrSome' function usage: Input state abbreviations (not full state names)
 # as function arguments. Quotations or capitalizations are not necessary.
-demoTest <- function(...) {
+demogrSomeF <- function(...) {
   states <- gsub('\"', '', toupper(sapply(substitute(list(...)), deparse)[-1]))
   
   demogrSome <- filter(src.demogr, state_abbreviation %in% states) %>%
@@ -44,13 +46,16 @@ demoTest <- function(...) {
   assign('demogrSome', demogrSome, envir = globalenv())
 }
 
-demoTest(IA, IL, MN, NE, MI)
+# We'll focus on 5 randomly picked Midwestern states for now
+demogrSomeF(IA, IL, MN, NE, MI)
 
+# For the whole nation, use:
 demogrAll <- select(src.demogr, state = state_abbreviation, county = area_name,
                     income = INC110213, education = EDU685213, density = POP060210,
                     white = RHI825214, hispanic = RHI725214,  household = HSD310213) %>%
   mutate(county = gsub(' County', '', county))
 
+# Join vote and demographic data for further analysis
 combdRep <- inner_join(demogrSome, votesRep, by = c('state', 'county'))
 combdDem <- inner_join(demogrSome, votesDem, by = c('state', 'county'))
 
@@ -68,7 +73,7 @@ ggplot(combdRep, aes(x = winner, y = household, fill = winner)) +
   geom_boxplot() +
   coord_flip()
 
-## Candidates to analyze
+## Select a few candidates for visual analysis
 candidates <- c('Donald Trump', 'Ted Cruz', 'Hillary Clinton', 'Bernie Sanders')
 cddList <- list()
 
@@ -86,15 +91,18 @@ for (i in candidates) {
 # statistics (merged with demographic metrics) in cddList.
 # The next step is to plot the fraction of votes (a performance metric)
 # against various demographic metrics. There are plenty of repeatable
-# codes here so we will build a function to reduce clutter.
+# codes here so we'll build a function to reduce clutter.
 # Usage: Input demographic metric in quotes; e.g. cddPlot('income')
 cddPlot <- function(metric) {
-  plot_grid(plotlist = lapply(cddList, function(df)
-    ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
+	plot_grid(plotlist = lapply(cddList, function(df)
+		ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
       geom_point() +
-      geom_smooth(method = 'lm', formula = y~x)),
-    labels = names(cddList), align = 'h',
-    label_x = 0, label_y = 0, hjust = -0.5, vjust = -1.5)
+      geom_smooth(method = 'lm', formula = y~x) +
+    	ggtitle(label = df[1, 4]) +
+    	theme(axis.title.x = element_blank(),
+    				axis.title.y = element_blank(),
+    				plot.title = element_text(size = 12))),
+    align = 'h', label_x = 0, label_y = 0, hjust = -0.5, vjust = -1.5)
 }
 
 # Plot fraction_votes as a function of 'education':
@@ -114,3 +122,10 @@ cddPlot('income')
 # Interestingly, Donald Trump enjoys some popularity in areas of significant
 # Hispanic populations, as opposed to Ted Cruz.
 cddPlot('hispanic')
+
+# Plot fraction_votes as a function of 'household'
+cddPlot('household')
+
+## Some linear regression
+#
+summary(lm(fraction_votes~income + hispanic + household, data = cddList[[1]]))
