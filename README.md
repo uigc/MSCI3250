@@ -92,7 +92,10 @@ The combined data frames `combdRep` and `combdDem` allow for many possible visua
 ```r
 ggplot(combdRep, aes(x = winner, y = income, fill = winner)) +
   geom_boxplot() +
-  coord_flip()
+  scale_y_continuous(labels = dollar) +
+  labs(y = 'Median Household Income', x = 'Candidate') +
+  coord_flip() +
+theme(legend.position = 'none')
 ```
 
 ![alt text](https://github.com/shenlim/MSCI3250/blob/master/plot_01_rep_inc.png "Plot 01")
@@ -146,6 +149,43 @@ cddPlotLog <- function(metric) {
 						plot.title = element_text(size = 12))),
 		align = 'h', label_x = 0, label_y = 0, hjust = -0.5, vjust = -1.5)
 }
+```
+
+---
+**6.** We'll run a multiple linear regression model based on `fraction_votes` as a function of `income`, `hispanic`, and `household`. Loop the model for each of the 4 candidates specified above.
+
+```r
+for (i in candidates) {
+	linRegResults[[match(i, candidates)]] <-
+	summary(lm(fraction_votes~income + hispanic + household,
+		   data = cddList[[strsplit(i, ' ') %>%
+	                            sapply('[[', length(unlist(strsplit(i, ' '))))]]
+	           ))
+	
+  names(linRegResults)[match(i, candidates)] <- strsplit(i, ' ') %>%
+    sapply('[[', length(unlist(strsplit(i, ' '))))
+}
+```
+
+The results of the linear regression model for each candidate can be accessed via last name. For example, `linRegResults['Trump']` yields:
+
+```
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.28568 -0.11390 -0.01816  0.10646  0.34846 
+
+Coefficients:
+              Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  9.390e-01  1.117e-01   8.404 9.37e-16 ***
+income      -4.207e-06  1.053e-06  -3.996 7.77e-05 ***
+hispanic     6.041e-03  1.535e-03   3.937 9.87e-05 ***
+household   -1.409e-01  5.255e-02  -2.682  0.00765 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.1434 on 370 degrees of freedom
+Multiple R-squared:  0.1022,	Adjusted R-squared:  0.09493 
+F-statistic: 14.04 on 3 and 370 DF,  p-value: 1.093e-08
 ```
 
 To be continued ...
