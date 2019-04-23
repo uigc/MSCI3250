@@ -95,6 +95,10 @@ ggplot(combdRep, aes(x = winner, y = income, fill = winner)) +
   coord_flip()
 ```
 
+![alt text](https://github.com/shenlim/MSCI3250/blob/master/plot_01_rep_inc.png "Plot 01")
+
+From the boxplot, we can infer that Donald Trump is more likely to win in areas of lower median income.
+
 ---
 **4.** Let's go deeper into our data for more insightful visuals. Instead of focusing on winners of each county, we'll select some big candidates and analyze their performance in *all* counties. Keep in mind that our analyses are still based on the 5 states we've chosen above.
 
