@@ -5,15 +5,15 @@ library(cowplot)
 rm(list = ls())
 
 ## Load source files--do not write into
-src.primary <- read.csv('primary_results.csv', stringsAsFactors = F)
-src.demogr <- read.csv('county_facts.csv', stringsAsFactors = F)
-src.dict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = F)
+srcPrimary <- read.csv('primary_results.csv', stringsAsFactors = FALSE)
+srcDemogr <- read.csv('county_facts.csv', stringsAsFactors = FALSE)
+srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE)
 
 ## Extract winners and vote statistics in each county for each party
 # Two new objects: votesRep, votesDem
-for (i in levels(as.factor(src.primary$party))) {
+for (i in levels(as.factor(srcPrimary$party))) {
   assign(paste('votes', substring(i, 1, 3), sep = ''),
-         group_by(src.primary, state_abbreviation, county, party) %>%
+         group_by(srcPrimary, state_abbreviation, county, party) %>%
            filter(party == i & votes != 0 & fraction_votes != 0) %>%
            summarize(winner = candidate[which.max(fraction_votes)],
                      votes = max(votes),
@@ -37,7 +37,7 @@ for (i in levels(as.factor(src.primary$party))) {
 demogrSomeF <- function(...) {
   states <- gsub('\"', '', toupper(sapply(substitute(list(...)), deparse)[-1]))
   
-  demogrSome <- filter(src.demogr, state_abbreviation %in% states) %>%
+  demogrSome <- filter(srcDemogr, state_abbreviation %in% states) %>%
     select(state = state_abbreviation, county = area_name,
            income = INC110213, education = EDU685213, density = POP060210,
            white = RHI825214, hispanic = RHI725214, household = HSD310213) %>%
@@ -50,7 +50,7 @@ demogrSomeF <- function(...) {
 demogrSomeF(IA, IL, MN, NE, MI)
 
 # For the whole nation, use:
-demogrAll <- select(src.demogr, state = state_abbreviation, county = area_name,
+demogrAll <- select(srcDemogr, state = state_abbreviation, county = area_name,
                     income = INC110213, education = EDU685213, density = POP060210,
                     white = RHI825214, hispanic = RHI725214,  household = HSD310213) %>%
   mutate(county = gsub(' County', '', county))
@@ -78,7 +78,7 @@ candidates <- c('Donald Trump', 'Ted Cruz', 'Hillary Clinton', 'Bernie Sanders')
 cddList <- list()
 
 for (i in candidates) {
-  cddList[[match(i, candidates)]] <- filter(src.primary, candidate == i) %>%
+  cddList[[match(i, candidates)]] <- filter(srcPrimary, candidate == i) %>%
     select(state = state_abbreviation, county = county, party = party,
            candidate = candidate, votes = votes, fraction_votes = fraction_votes) %>%
     inner_join(demogrSome, by = c('state', 'county'))
