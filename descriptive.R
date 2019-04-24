@@ -10,6 +10,10 @@ srcPrimary <- read.csv('primary_results.csv', stringsAsFactors = FALSE)
 srcDemogr <- read.csv('county_facts.csv', stringsAsFactors = FALSE)
 srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE)
 
+# Load real gross domestic product (RGDP) data for all counties. We won't be
+# using this data until Section #7.
+srcRgdp <- read.csv('county_rgdp.csv', stringsAsFactors = FALSE, check.names = FALSE)
+
 ## 2. Extract winners and vote statistics in each county for each party.
 # We'll use a loop as this is a repetitive process for both parties.
 # Two new objects: votesRep, votesDem
@@ -106,7 +110,8 @@ for (i in candidates) {
     sapply('[[', length(unlist(strsplit(i, ' '))))
 }
 
-## 5. We now have a populated list of candidates and their respective vote
+## 5. Advanced Plots.
+# We now have a populated list of candidates and their respective vote
 # statistics (merged with demographic metrics) in 'cddList'.
 # The next step is to plot the fraction of votes (a performance metric) against
 # various demographic metrics. There are plenty of repeatable codes here so
@@ -163,7 +168,7 @@ cddPlotLog('hispanic')
 # Ted Cruz seems to be popular in large households.
 cddPlot('household')
 
-## 6. Some linear regression
+## 6. Linear Regression Models.
 # Run a linear regression model of 'fraction_votes' as a function of 'income',
 # 'hispanic', and 'household.' Store the results for each candidate in a list.
 linRegResults <- list()
@@ -181,4 +186,19 @@ for (i in candidates) {
 
 # The results can accessed via each candidate's last name.
 linRegResults['Trump']
+
+## 7. Real Gross Domestic Product Analysis.
+# Join the demographic data of the 5 states with the real GDP dataset.
+demogrSome <- inner_join(demogrSome, srcRgdp, by = c('state', 'county'))
+
+# Compute RGDP per capita. Since we're only provided with 2014 population data
+# in 'srcDemogr', we'll compute RGDP per capita in 2014.
+demogrSome <- select(srcDemogr, county = area_name, state = state_abbreviation,
+										 pop2014 = PST045214) %>%
+	mutate(county = gsub(' County', '', county)) %>%
+	inner_join(demogrSome, by = c('state', 'county'))
+
+demogrSome$rgdppc14 <- demogrSome$rgdp2014 / demogrSome$pop2014
+
+cddPlotLog('rgdppc14')
 
