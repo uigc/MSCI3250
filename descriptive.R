@@ -15,8 +15,8 @@ srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE)
 srcRgdp <- read.csv('county_rgdp.csv', stringsAsFactors = FALSE, check.names = FALSE)
 
 ## 2. Extract winners and vote statistics in each county for each party.
-# We'll use a loop as this is a repetitive process for both parties.
-# Two new objects: votesRep, votesDem
+# We'll use a loop as this is repetitive for both parties.
+# Two new objects: 'votesRep', 'votesDem'
 for (i in levels(as.factor(srcPrimary$party))) {
   assign(paste('votes', substring(i, 1, 3), sep = ''),
          group_by(srcPrimary, state_abbreviation, county, party) %>%
@@ -29,6 +29,7 @@ for (i in levels(as.factor(srcPrimary$party))) {
 }
 
 ## 3. Extract some demographic data--refer to county_facts_dictionary:
+# PST045214: Population, 2014 estimate
 # INC110213: Median household income, 2009-2013
 # EDU685213: Bachelor's degree or higher, percent of persons age 25+, 2009-2013
 # POP060210: Population per square mile, 2010
@@ -45,7 +46,7 @@ demogrSomeF <- function(...) {
   states <- gsub('\"', '', toupper(sapply(substitute(list(...)), deparse)[-1]))
   
   demogrSome <- filter(srcDemogr, state_abbreviation %in% states) %>%
-    select(state = state_abbreviation, county = area_name,
+    select(state = state_abbreviation, county = area_name, pop14 = PST045214,
            income = INC110213, education = EDU685213, density = POP060210,
            white = RHI825214, hispanic = RHI725214, household = HSD310213) %>%
     mutate(county = gsub(' County', '', county))
@@ -75,14 +76,14 @@ winners <- group_by(combdAll, winner, party) %>%
             density = round(mean(density)), white = round(mean(white)),
             hispanic = round(mean(hispanic)), household = round(mean(household)))
 
-# Simple scatterplot of republican winners based on household and income:
+# Simple scatterplot of Republican winners based on household and income:
 ggplot(combdRep, aes(x = income, y = household)) +
   geom_point(aes(color = winner, size = votes)) +
 	labs(y = 'Median Household Income', x = '% Persons with Bachelor\'s or higher') +
 	scale_color_discrete(combdRep$winner, name = 'Candidate') +
 	guides(size = FALSE)
 
-# Simple boxplot of republican winners and the income demographic they attract:
+# Simple boxplot of Republican winners and the income demographic they attract:
 # Notice that Donald Trump is more likely to win in areas of lower median income.
 ggplot(combdRep, aes(x = winner, y = income, fill = winner)) +
   geom_boxplot() +
@@ -91,13 +92,17 @@ ggplot(combdRep, aes(x = winner, y = income, fill = winner)) +
   coord_flip() +
 	theme(legend.position = 'none')
 
-## 4. Select a few candidates for visual analysis.
-# A reminder that further analyses is based on the 5 states we've chosen above.
+## 4. Select some major candidates for more visual analyses.
+# A reminder that we're still focusing on the 5 states we've chosen above.
 # We'll now focus on each candidate and their performance (fraction_votes) in
-# every county, not just the winners. First, select some 'big' candidates:
+# every county, not just the winners. First, select some major candidates:
 candidates <- c('Donald Trump', 'Ted Cruz', 'Hillary Clinton', 'Bernie Sanders')
 
 # Then, populate a list of each candidate with joined vote and demographic info:
+# The list will contain n data frames, where n is the number of candidates we
+# choose. Each data frame comsists of the candidate's vote statistics joined with
+# demographic data. Each data frame can be further expanded as we gather more
+# metrics.
 cddList <- list()
 
 for (i in candidates) {
@@ -112,17 +117,18 @@ for (i in candidates) {
 
 ## 5. Advanced Plots.
 # We now have a populated list of candidates and their respective vote
-# statistics (merged with demographic metrics) in 'cddList'.
+# statistics (merged with demographic data) in 'cddList'.
 # The next step is to plot the fraction of votes (a performance metric) against
-# various demographic metrics. There are plenty of repeatable codes here so
-# we'll build a function to reduce clutter.
-# Usage: Input demographic metric in quotes; e.g. cddPlot('income')
+# various demographic data. We'll build functions to maintain consistency,
+# reduce clutter, and reduce the potential for mistakes.
+# Usage: Input a single demographic metric in quotes; e.g. cddPlot('income')
+# This metric will be the explanatory variable (x-axis).
 cddPlot <- function(metric) {
 	plot_grid(plotlist = lapply(cddList, function(df)
 		ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
       geom_point() +
       geom_smooth(method = 'lm', formula = y~x) +
-    	ggtitle(label = df[1, 4]) +
+    	ggtitle(label = df[1, 'candidate']) +
     	theme(axis.title.x = element_blank(),
     				axis.title.y = element_blank(),
     				plot.title = element_text(size = 12))),
@@ -139,7 +145,7 @@ cddPlotLog <- function(metric) {
 			geom_point() +
 			scale_x_log10() +
 			geom_smooth(method = 'lm', formula = y~x) +
-			ggtitle(label = df[1, 4]) +
+			ggtitle(label = df[1, 'candidate']) +
 			theme(axis.title.x = element_blank(),
 						axis.title.y = element_blank(),
 						plot.title = element_text(size = 12))),
@@ -193,12 +199,56 @@ demogrSome <- inner_join(demogrSome, srcRgdp, by = c('state', 'county'))
 
 # Compute RGDP per capita. Since we're only provided with 2014 population data
 # in 'srcDemogr', we'll compute RGDP per capita in 2014.
-demogrSome <- select(srcDemogr, county = area_name, state = state_abbreviation,
-										 pop2014 = PST045214) %>%
-	mutate(county = gsub(' County', '', county)) %>%
-	inner_join(demogrSome, by = c('state', 'county'))
+demogrSome$rgdppc14 <- demogrSome$rgdp2014 / demogrSome$pop14
 
-demogrSome$rgdppc14 <- demogrSome$rgdp2014 / demogrSome$pop2014
+combdRep <- inner_join(demogrSome, votesRep, by = c('state', 'county'))
 
+# Let's remove some outlier data by setting limits:
+xlim1 = boxplot.stats(combdRep$rgdppc14)$stats[c(1, 5)]
+
+# Simple boxplot of Republican winners as a function of real 2014 GDP per capita,
+# with outliers removed.
+ggplot(combdRep, aes(x = winner, y = rgdppc14, fill = winner)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = dollar, limits = xlim1 * 1.05) +
+  labs(y = 'Real GDP Per Capita (2014)', x = 'Candidate') +
+  coord_flip() +
+  theme(legend.position = 'none')
+
+# We can derive trends from real GDP per capita.
+# Calculate the percentage real GDP per capita change from 2012 to 2015.
+demogrSome$rgdpDelta <- (demogrSome$rgdp2015 - demogrSome$rgdp2012) /
+  demogrSome$rgdp2012 * 100
+
+# We may need to perform log transformations, so negative values (decreasing
+# real GDP per capita) will be ignored (undefined)! We'll normalize 'rgdpDelta'
+# by rescaling it from 0 to 1.
+demogrSome$rgdpDeltaNorm <- (demogrSome$gdpDelta - min(demogrSome$gdpDelta)) /
+  (max(demogrSome$gdpDelta) - min(demogrSome$gdpDelta))
+
+# Join the list of candidates with vote and demographic data 'cddList' we
+# created earlier with all real gdp data.
+for (i in seq(length(cddList))) {
+  cddList[[i]] <- merge(cddList[[i]], demogrSome)
+}
+
+# Notice Ted Cruz's popularity decline in areas of high RGDP per capita.
 cddPlotLog('rgdppc14')
+
+# Notice Donald Trump's surging popularity in areas of increasing RGDP per capita
+# from 2012 to 2015. Earlier, we noticed that Donald Trump's probability of
+# winning increases as the median household income decreases. We can infer that
+# Donald Trump's chance of winning increases in areas of low income and increasing
+# real GDP per capita. Important: This is within our 5 chosen states.
+cddPlotLog('rgdpDeltaNorm')
+
+# To be safe, we'll perform a correlation test to make sure that the explanatory
+# variables 'income' and 'gdpDelta' are not significantly correlated to each other.
+# The null hypothesis is that the true correlation is equal to 0. Since the P-value
+# is 0.2834, we cannot reject the null hypothesis and must conclude that there is
+# no significant correlation.
+cor.test(demogrSome$income, demogrSome$rgdpDelta, method = 'pearson')
+
+# Linear regression.
+summary(lm(fraction_votes~income + rgdpDelta, data = cddList[['Trump']]))
 
