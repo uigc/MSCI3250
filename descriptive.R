@@ -24,7 +24,7 @@ for (i in levels(as.factor(srcPrimary$party))) {
            summarize(winner = candidate[which.max(fraction_votes)],
                      votes = max(votes),
                      fraction_votes = max(fraction_votes)) %>%
-           rename(state = state_abbreviation))
+           dplyr::rename(state = state_abbreviation))
   rm(i)
 }
 
@@ -223,8 +223,8 @@ demogrSome$rgdpDelta <- (demogrSome$rgdp2015 - demogrSome$rgdp2012) /
 # We may need to perform log transformations, so negative values (decreasing
 # real GDP per capita) will be ignored (undefined)! We'll normalize 'rgdpDelta'
 # by rescaling it from 0 to 1.
-demogrSome$rgdpDeltaNorm <- (demogrSome$gdpDelta - min(demogrSome$gdpDelta)) /
-  (max(demogrSome$gdpDelta) - min(demogrSome$gdpDelta))
+demogrSome$rgdpDeltaNorm <- (demogrSome$rgdpDelta - min(demogrSome$rgdpDelta)) /
+  (max(demogrSome$rgdpDelta) - min(demogrSome$rgdpDelta))
 
 # Join the list of candidates with vote and demographic data 'cddList' we
 # created earlier with all real gdp data.
@@ -251,4 +251,3 @@ cor.test(demogrSome$income, demogrSome$rgdpDelta, method = 'pearson')
 
 # Linear regression.
 summary(lm(fraction_votes~income + rgdpDelta, data = cddList[['Trump']]))
-
