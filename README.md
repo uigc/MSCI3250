@@ -1,7 +1,7 @@
 ## MSCI:3250 - Analyzing Data for Business Intelligence - Final Project
 
 ## Objective
-To search for patterns and correlations between demographics, economic situation and political leanings in certain areas.
+To visualize and describe patterns and correlations between demographics, economic situation and political leanings in certain areas.
 
 Some areas of discovery:
 * Are there any significant correlation between various demographic/economic data and candidate performance?
