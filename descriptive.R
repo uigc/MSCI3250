@@ -1,11 +1,12 @@
-### Descriptive analysis
+### Descriptive Analysis
 library(dplyr)
 library(scales)
 library(ggplot2)
 library(cowplot)
 rm(list = ls())
 
-## 1. Load source files--do not write into!
+## 1. Source Files
+# Do not write into these files! Use separate data frames for extraction.
 srcPrimary <- read.csv('primary_results.csv', stringsAsFactors = FALSE)
 srcDemogr <- read.csv('county_facts.csv', stringsAsFactors = FALSE)
 srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE)
@@ -14,7 +15,7 @@ srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE)
 # using this data until Section #7.
 srcRgdp <- read.csv('county_rgdp.csv', stringsAsFactors = FALSE, check.names = FALSE)
 
-## 2. Extract winners and vote statistics in each county for each party.
+## 2. Extract Primary Winners by County
 # We'll use a loop as this is repetitive for both parties.
 # Two new objects: 'votesRep', 'votesDem'
 for (i in levels(as.factor(srcPrimary$party))) {
@@ -28,7 +29,8 @@ for (i in levels(as.factor(srcPrimary$party))) {
   rm(i)
 }
 
-## 3. Extract some demographic data--refer to county_facts_dictionary:
+## 3. Extract Demographic Data
+# Refer to county_facts_dictionary:
 # PST045214: Population, 2014 estimate
 # INC110213: Median household income, 2009-2013
 # EDU685213: Bachelor's degree or higher, percent of persons age 25+, 2009-2013
@@ -92,8 +94,9 @@ ggplot(combdRep, aes(x = winner, y = income, fill = winner)) +
   coord_flip() +
 	theme(legend.position = 'none')
 
-## 4. Select some major candidates for more visual analyses.
-# A reminder that we're still focusing on the 5 states we've chosen above.
+## 4. Extract Candidate Data by County and Demographics
+# Select some major candidates for more visual analyses. A reminder that we're
+# still focusing on the 5 states we've chosen above.
 # We'll now focus on each candidate and their performance (fraction_votes) in
 # every county, not just the winners. First, select some major candidates:
 candidates <- c('Donald Trump', 'Ted Cruz', 'Hillary Clinton', 'Bernie Sanders')
@@ -115,7 +118,7 @@ for (i in candidates) {
     sapply('[[', length(unlist(strsplit(i, ' '))))
 }
 
-## 5. Advanced Plots.
+## 5. Build Plot Functions
 # We now have a populated list of candidates and their respective vote
 # statistics (merged with demographic data) in 'cddList'.
 # The next step is to plot the fraction of votes (a performance metric) against
@@ -174,7 +177,7 @@ cddPlotLog('hispanic')
 # Ted Cruz seems to be popular in large households.
 cddPlot('household')
 
-## 6. Linear Regression Models.
+## 6. Regression Models
 # Run a linear regression model of 'fraction_votes' as a function of 'income',
 # 'hispanic', and 'household.' Store the results for each candidate in a list.
 linRegResults <- list()
@@ -193,7 +196,7 @@ for (i in candidates) {
 # The results can accessed via each candidate's last name.
 linRegResults['Trump']
 
-## 7. Real Gross Domestic Product Analysis.
+## 7. Incorporating Real Gross Domestic Product
 # Join the demographic data of the 5 states with the real GDP dataset.
 demogrSome <- inner_join(demogrSome, srcRgdp, by = c('state', 'county'))
 
