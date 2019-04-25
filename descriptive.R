@@ -201,28 +201,14 @@ demogrSome <- inner_join(demogrSome, srcRgdp, by = c('state', 'county'))
 # in 'srcDemogr', we'll compute RGDP per capita in 2014.
 demogrSome$rgdppc14 <- demogrSome$rgdp2014 / demogrSome$pop14
 
-combdRep <- inner_join(demogrSome, votesRep, by = c('state', 'county'))
-
-# Let's remove some outlier data by setting limits:
-xlim1 = boxplot.stats(combdRep$rgdppc14)$stats[c(1, 5)]
-
-# Simple boxplot of Republican winners as a function of real 2014 GDP per capita,
-# with outliers removed.
-ggplot(combdRep, aes(x = winner, y = rgdppc14, fill = winner)) +
-  geom_boxplot() +
-  scale_y_continuous(labels = dollar, limits = xlim1 * 1.05) +
-  labs(y = 'Real GDP Per Capita (2014)', x = 'Candidate') +
-  coord_flip() +
-  theme(legend.position = 'none')
-
-# We can derive trends from real GDP per capita.
-# Calculate the percentage real GDP per capita change from 2012 to 2015.
+# We can derive trends from annual data. A simple trend would be to calculate
+# the decimal real GDP change from 2012 to 2015.
 demogrSome$rgdpDelta <- (demogrSome$rgdp2015 - demogrSome$rgdp2012) /
-  demogrSome$rgdp2012 * 100
+  demogrSome$rgdp2012
 
 # We may need to perform log transformations, so negative values (decreasing
-# real GDP per capita) will be ignored (undefined)! We'll normalize 'rgdpDelta'
-# by rescaling it from 0 to 1.
+# real GDP) will be ignored (undefined)! We'll normalize 'rgdpDelta' by
+# rescaling it from 0 to 1.
 demogrSome$rgdpDeltaNorm <- (demogrSome$rgdpDelta - min(demogrSome$rgdpDelta)) /
   (max(demogrSome$rgdpDelta) - min(demogrSome$rgdpDelta))
 
@@ -235,19 +221,43 @@ for (i in seq(length(cddList))) {
 # Notice Ted Cruz's popularity decline in areas of high RGDP per capita.
 cddPlotLog('rgdppc14')
 
-# Notice Donald Trump's surging popularity in areas of increasing RGDP per capita
-# from 2012 to 2015. Earlier, we noticed that Donald Trump's probability of
-# winning increases as the median household income decreases. We can infer that
-# Donald Trump's chance of winning increases in areas of low income and increasing
-# real GDP per capita. Important: This is within our 5 chosen states.
+# Notice Donald Trump's popularity increase in areas of increasing RGDP from
+# 2012 to 2015. Earlier, we noticed that Donald Trump's probability of winning
+# increases as the median household income decreases. We can infer that Trump's
+# chance of winning increases in areas of low income and increasing RGDP.
+# Important: This is within our 5 chosen states.
 cddPlotLog('rgdpDeltaNorm')
 
 # To be safe, we'll perform a correlation test to make sure that the explanatory
-# variables 'income' and 'gdpDelta' are not significantly correlated to each other.
+# variables 'income' and 'rgdpDelta' are not significantly correlated to each other.
 # The null hypothesis is that the true correlation is equal to 0. Since the P-value
 # is 0.2834, we cannot reject the null hypothesis and must conclude that there is
-# no significant correlation.
+# no significant correlation. This is a simple test for multicollinearity.
 cor.test(demogrSome$income, demogrSome$rgdpDelta, method = 'pearson')
 
-# Linear regression.
+# With no significant correlation between predictor variables 'income' and
+# 'rgdpDelta', proceed with multiple regression and examine the output:
 summary(lm(fraction_votes~income + rgdpDelta, data = cddList[['Trump']]))
+
+# Join each party with our updated 'demogrSome' data frame.
+combdRep <- inner_join(demogrSome, votesRep, by = c('state', 'county'))
+combdDem <- inner_join(demogrSome, votesDem, by = c('state', 'county'))
+
+# Simple boxplot of Republican winners as a function of real GDP per capita.
+# We can remove some outliers using 'boxplot.stats(df$y)$stats[c(1, 5)]'
+ggplot(combdRep, aes(x = winner, y = rgdppc14, fill = winner)) +
+	geom_boxplot() +
+	scale_y_continuous(labels = dollar,
+										 limits = boxplot.stats(combdRep$rgdppc14)$stats[c(1, 5)]) +
+	labs(y = 'Real GDP Per Capita (2014)', x = 'Candidate') +
+	coord_flip() +
+	theme(legend.position = 'none')
+
+# Boxplot of Republican winners as a function of real GDP change from 2012-2015.
+ggplot(combdRep, aes(x = winner, y = rgdpDelta, fill = winner)) +
+	geom_boxplot() +
+	scale_y_continuous(labels = percent,
+										 limits = boxplot.stats(combdRep$rgdpDelta)$stats[c(1, 5)]) +
+	labs(y = expression(Delta * ' Real GDP 2012-2015'), x = 'Candidate') +
+	coord_flip() +
+	theme(legend.position = 'none')
