@@ -1,4 +1,5 @@
 ### Logistic Regression
+## Refer to https://github.com/shenlim/MSCI3250/wiki/Logistic-Regression
 library(dplyr)
 library(ggplot2)
 library(caret)
