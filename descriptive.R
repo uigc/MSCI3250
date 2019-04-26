@@ -57,7 +57,7 @@ demogrSomeF <- function(...) {
 }
 
 # We'll focus on 5 Midwestern states for now:
-demogrSomeF(IA, IL, MN, NE, MI)
+demogrSomeF(IL, IA, MI, MN, NE)
 
 # For the whole nation, use:
 # We won't be working with nationwide demographic data yet.
@@ -81,18 +81,18 @@ winners <- group_by(combdAll, winner, party) %>%
 # Simple scatterplot of Republican winners based on household and income:
 ggplot(combdRep, aes(x = income, y = household)) +
   geom_point(aes(color = winner, size = votes)) +
-	labs(y = 'Median Household Income', x = '% Persons with Bachelor\'s or higher') +
-	scale_color_discrete(combdRep$winner, name = 'Candidate') +
-	guides(size = FALSE)
+  labs(y = 'Median Household Income', x = '% Persons with Bachelor\'s or higher') +
+  scale_color_discrete(combdRep$winner, name = 'Candidate') +
+  guides(size = FALSE)
 
 # Simple boxplot of Republican winners and the income demographic they attract:
 # Notice that Donald Trump is more likely to win in areas of lower median income.
 ggplot(combdRep, aes(x = winner, y = income, fill = winner)) +
   geom_boxplot() +
-	scale_y_continuous(labels = dollar) +
-	labs(y = 'Median Household Income', x = 'Candidate') +
+  scale_y_continuous(labels = dollar) +
+  labs(y = 'Median Household Income', x = 'Candidate') +
   coord_flip() +
-	theme(legend.position = 'none')
+  theme(legend.position = 'none')
 
 ## 4. Extract Candidate Data by County and Demographics
 # Select some major candidates for more visual analyses. A reminder that we're
@@ -127,14 +127,14 @@ for (i in candidates) {
 # Usage: Input a single demographic metric in quotes; e.g. cddPlot('income')
 # This metric will be the explanatory variable (x-axis).
 cddPlot <- function(metric) {
-	plot_grid(plotlist = lapply(cddList, function(df)
-		ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
+  plot_grid(plotlist = lapply(cddList, function(df)
+    ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
       geom_point() +
       geom_smooth(method = 'lm', formula = y~x) +
-    	ggtitle(label = df[1, 'candidate']) +
-    	theme(axis.title.x = element_blank(),
-    				axis.title.y = element_blank(),
-    				plot.title = element_text(size = 12))),
+      ggtitle(label = df[1, 'candidate']) +
+      theme(axis.title.x = element_blank(),
+            axis.title.y = element_blank(),
+            plot.title = element_text(size = 12))),
     align = 'h', label_x = 0, label_y = 0, hjust = -0.5, vjust = -1.5)
 }
 
@@ -143,16 +143,16 @@ cddPlot <- function(metric) {
 # Use this plotting function instead for a log transformation of the x-axis.
 # Usage: Input demographic metric in quotes; e.g. cddPlotLog('income')
 cddPlotLog <- function(metric) {
-	plot_grid(plotlist = lapply(cddList, function(df)
-		ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
-			geom_point() +
-			scale_x_log10() +
-			geom_smooth(method = 'lm', formula = y~x) +
-			ggtitle(label = df[1, 'candidate']) +
-			theme(axis.title.x = element_blank(),
-						axis.title.y = element_blank(),
-						plot.title = element_text(size = 12))),
-		align = 'h', label_x = 0, label_y = 0, hjust = -0.5, vjust = -1.5)
+  plot_grid(plotlist = lapply(cddList, function(df)
+    ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
+      geom_point() +
+      scale_x_log10() +
+      geom_smooth(method = 'lm', formula = y~x) +
+      ggtitle(label = df[1, 'candidate']) +
+      theme(axis.title.x = element_blank(),
+            axis.title.y = element_blank(),
+            plot.title = element_text(size = 12))),
+    align = 'h', label_x = 0, label_y = 0, hjust = -0.5, vjust = -1.5)
 }
 
 # Plot fraction_votes as a function of 'education':
@@ -183,14 +183,14 @@ cddPlot('household')
 linRegResults <- list()
 
 for (i in candidates) {
-	linRegResults[[match(i, candidates)]] <-
-	summary(lm(fraction_votes~income + hispanic + household,
-						 data = cddList[[strsplit(i, ' ') %>%
-						 									sapply('[[', length(unlist(strsplit(i, ' '))))]]
-						 ))
+  linRegResults[[match(i, candidates)]] <-
+    summary(lm(fraction_votes~income + hispanic + household,
+               data = cddList[[strsplit(i, ' ') %>%
+                                 sapply('[[', length(unlist(strsplit(i, ' '))))]]
+               ))
 	
 	names(linRegResults)[match(i, candidates)] <- strsplit(i, ' ') %>%
-		sapply('[[', length(unlist(strsplit(i, ' '))))
+	  sapply('[[', length(unlist(strsplit(i, ' '))))
 }
 
 # The results can accessed via each candidate's last name.
@@ -249,18 +249,18 @@ combdDem <- inner_join(demogrSome, votesDem, by = c('state', 'county'))
 # Simple boxplot of Republican winners as a function of real GDP per capita.
 # We can remove some outliers using 'boxplot.stats(df$y)$stats[c(1, 5)]'
 ggplot(combdRep, aes(x = winner, y = rgdppc14, fill = winner)) +
-	geom_boxplot() +
-	scale_y_continuous(labels = dollar,
-										 limits = boxplot.stats(combdRep$rgdppc14)$stats[c(1, 5)]) +
+  geom_boxplot() +
+  scale_y_continuous(labels = dollar,
+                     limits = boxplot.stats(combdRep$rgdppc14)$stats[c(1, 5)]) +
 	labs(y = 'Real GDP Per Capita (2014)', x = 'Candidate') +
-	coord_flip() +
-	theme(legend.position = 'none')
+  coord_flip() +
+  theme(legend.position = 'none')
 
 # Boxplot of Republican winners as a function of real GDP change from 2012-2015.
 ggplot(combdRep, aes(x = winner, y = rgdpDelta, fill = winner)) +
-	geom_boxplot() +
-	scale_y_continuous(labels = percent,
-										 limits = boxplot.stats(combdRep$rgdpDelta)$stats[c(1, 5)]) +
-	labs(y = expression(Delta * ' Real GDP 2012-2015'), x = 'Candidate') +
-	coord_flip() +
-	theme(legend.position = 'none')
+  geom_boxplot() +
+  scale_y_continuous(labels = percent,
+                     limits = boxplot.stats(combdRep$rgdpDelta)$stats[c(1, 5)]) +
+  labs(y = expression(Delta * ' Real GDP 2012-2015'), x = 'Candidate') +
+  coord_flip() +
+  theme(legend.position = 'none')
