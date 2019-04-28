@@ -104,7 +104,7 @@ county_choropleth(mapDf, state_zoom = states, title = '2016 Actual Results') +
 
 # Plot predicted results based on 'education' and 'income'
 predictDf <- data.frame(region = main$fips,
-                        value = ifelse(predict(logReg, newdata = main, type = 'response') > 0.15,
+                        value = ifelse(predict(logReg, newdata = main, type = 'response') > cutoff,
                                        'Republican', 'Democrat') %>% as.factor())
 
 county_choropleth(predictDf, state_zoom = states, title = '2016 Predictions') +
