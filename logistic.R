@@ -68,7 +68,7 @@ testData <- main[- trainDataIndex, ]
 table(main$winner16)
 table(trainData$winner16)
 
-upData <- downSample(x = trainData[!(names(trainData) %in% c('winner16'))],
+upData <- upSample(x = trainData[!(names(trainData) %in% c('winner16'))],
                    y = trainData$winner16)
 
 ## 5. Logistic Regression Model
