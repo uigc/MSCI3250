@@ -6,6 +6,7 @@ library(scales)
 library(caret)
 library(choroplethr)
 library(choroplethrMaps)
+library(cowplot)
 rm(list = ls())
 
 ## 1. Source Files
@@ -124,7 +125,7 @@ county_choropleth(accuracyDf, state_zoom = states, title = 'Model Accuracy') +
 
 ## 7. Plot Logistic Regression Models
 # Check parameters before generating plot:
-logReg <- glm(Class ~ education, family = 'binomial', data = upData)
+logReg <- glm(Class ~ white, family = 'binomial', data = upData)
 predict <- predict(logReg, newdata = main, type = 'response')
 main$prob <- predict
 main$predict <- ifelse(predict > cutoff, 1, 0)
