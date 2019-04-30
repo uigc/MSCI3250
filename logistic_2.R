@@ -91,12 +91,13 @@ logPlot <- function(metric, xlab, percent) {
   }
   
   ggplot(main, aes(x = main[, metric], y = predict)) +
-    geom_point(shape = 1, aes(color = as.factor(predict))) +
-    scale_color_manual(labels = c('0' = 'Win', '1' = 'Lose'),
-                       values = c('0' = 'Blue', '1' = 'Red')) +
-    geom_line(aes(y = main$prob), lwd = 1.5) +
+    geom_point(shape = 21, size = 2, aes(fill = as.factor(predict))) +
+    scale_fill_manual(values = c('1' = '#F8766D', '0' = '#619CFF'),
+                      labels = c('1' = 'Win', '0' = 'Lose')) +
+    geom_line(aes(y = main$prob, color = state), lwd = 1.3) +
     scale_x_continuous(labels = label) +
-    labs(x = xlab, y = 'P (Republicans Winning)', color = 'Trump')
+    labs(x = xlab, y = 'P (Republicans Winning)',
+         fill = 'Trump', color = 'State')
 }
 
 # Obama
@@ -169,8 +170,17 @@ ggplot(main, aes(x = foreign / 100, y = trumpVotes)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
   labs(x = '% Foreigners in Population', y = '% Votes for Trump')
 
+# Separate by State
+ggplot(main, aes(x = old / 100, y = trumpVotes, color = state)) +
+  geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = '% Population Aged 65 and over', y = '% Votes for Trump')
 
-
-
+ggplot(main, aes(x = foreign / 100, y = trumpVotes, color = state)) +
+  geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
+  scale_x_log10(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = '% Foreigners in Population', y = '% Votes for Trump')
 
 
