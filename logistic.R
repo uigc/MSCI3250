@@ -10,12 +10,12 @@ library(cowplot)
 rm(list = ls())
 
 ## 1. Source Files
-srcPresident <- read.csv('presidential_12_16.csv', stringsAsFactors = FALSE)
+srcPresident <- read.csv('county_presidential.csv', stringsAsFactors = FALSE)
 srcDemogr <- read.csv('county_facts.csv', stringsAsFactors = FALSE)
 srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE)
 srcRgdp <- read.csv('county_rgdp.csv', stringsAsFactors = FALSE, check.names = FALSE)
-srcUnemp <- read.csv('unemp.csv', stringsAsFactors = FALSE)
-srcPop <- read.csv('pop.csv', stringsAsFactors = FALSE)
+srcUnemp <- read.csv('county_unemployment.csv', stringsAsFactors = FALSE)
+srcPop <- read.csv('county_population.csv', stringsAsFactors = FALSE)
 
 ## 2. Data Cleanup and Merging
 pres <- select(srcPresident, fips = combined_fips, state = state_abbr,
@@ -49,8 +49,8 @@ rm(pres, demogrSome, unemp, rgdp, pop)
 ## 3. Calculate Unemployment Change, Rgdp Change, 2016 winner
 main$unempDelta <- (main$unemp_rate15 - main$unemp_rate12) / main$unemp_rate12
 
-main$rgdppcDelta <- ((main$rgdp2015 / main$pop15) - (main$rgdp2012 / main$pop12)) /
-  (main$rgdp2012 / main$pop12)
+main$rgdppcDelta <- ((main$rgdp2015 / main$pop2015) - (main$rgdp2012 / main$pop2012)) /
+  (main$rgdp2012 / main$pop2012)
 
 main$winner16 <- ifelse(main$votesRep16 > main$votesDem16, 1, 0) %>%
   factor(levels = c(0, 1))
@@ -124,39 +124,74 @@ county_choropleth(accuracyDf, state_zoom = states, title = 'Model Accuracy') +
                     name = 'Result')
 
 ## 7. Plot Logistic Regression Models
-# Check parameters before generating plot:
-logReg <- glm(Class ~ white, family = 'binomial', data = upData)
-predict <- predict(logReg, newdata = main, type = 'response')
-main$prob <- predict
-main$predict <- ifelse(predict > cutoff, 1, 0)
-table(main$predict)
+# We'll build a function to plot consistent logistic regression plots. The function has
+# 2 required and 1 optional arguments. Required: A single 'metric' as the x-axis, 'xlab'
+# as the x-axis label. Optional: Set 'percent' as TRUE if the metric is in the percent
+# format, leave blank otherwise. Run and update the logistic regression model before
+# plotting to ensure correct and updated predictions and probabilities in 'main'
+logPlot <- function(metric, xlab, percent) {
+  metric <- gsub('\"', '', deparse(substitute(metric)))
+  
+  if (percent == TRUE) {
+    main[, metric] <- main[, metric] / 100
+    label <- percent_format(accuracy = 1)
+  } else {
+    main[, metric] <- main[, metric]
+    label <- number_format(accuracy = 1)
+  }
+  
+  ggplot(main, aes(x = main[, metric], y = predict)) +
+    geom_point(shape = 1, aes(color = as.factor(predict))) +
+    scale_color_manual(labels = c('0' = 'D', '1' = 'R'),
+                       values = c('0' = 'Blue', '1' = 'Red')) +
+    geom_line(aes(y = main$prob), lwd = 1.5) +
+    scale_x_continuous(labels = label) +
+    labs(x = xlab, y = 'P (Republicans Winning)', color = 'Party')
+}
 
 # Education
-ggplot(main, aes(x = education / 100, y = predict)) +
-  geom_point(shape = 1, aes(color = as.factor(predict))) +
-  scale_color_manual(labels = c('0' = 'D', '1' = 'R'),
-                     values = c('0' = 'Blue', '1' = 'Red')) +
-  geom_line(aes(y = main$prob), lwd = 1.5) +
-  scale_x_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% Population with Bachelor\'s or Higher',
-       y = 'P (Republicans Winning)', color = 'Party')
+logReg <- glm(Class ~ education, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
+
+logPlot(education, '% Population with Bachelor\'s or Higher', percent = TRUE)
 
 # Hispanic
-ggplot(main, aes(x = hispanic / 100, y = predict)) +
-  geom_point(shape = 1, aes(color = as.factor(predict))) +
-  scale_color_manual(labels = c('0' = 'D', '1' = 'R'),
-                     values = c('0' = 'Blue', '1' = 'Red')) +
-  geom_line(aes(y = main$prob), lwd = 1.5) +
-  scale_x_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% Hispanic or Latino Population',
-       y = 'P (Republicans Winning)', color = 'Party')
+logReg <- glm(Class ~ hispanic, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
+
+logPlot(hispanic, '% Hispanic or Latino Population', percent = TRUE)
 
 # White
-ggplot(main, aes(x = white / 100, y = predict)) +
-  geom_point(shape = 1, aes(color = as.factor(predict))) +
-  scale_color_manual(labels = c('0' = 'D', '1' = 'R'),
-                     values = c('0' = 'Blue', '1' = 'Red')) +
-  geom_line(aes(y = main$prob), lwd = 1.5) +
-  scale_x_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% White Population',
-       y = 'P (Republicans Winning)', color = 'Party')
+logReg <- glm(Class ~ white, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
+
+logPlot(white, '% White Population', percent = TRUE)
+
+# We'll add a two more interesting demographic data to the 'main' data frame:
+# AGE775214: Persons 65 years and over, percent, 2014
+# POP645213: Foreign born persons, percent, 2009-2013
+main <- merge(main, select(srcDemogr, fips = fips, old = AGE775214, foreign = POP645213),
+              by = 'fips')
+
+# We'll also need to update the prediction model:
+trainData <- main[trainDataIndex, ]
+testData <- main[- trainDataIndex, ]
+upData <- upSample(x = trainData[!(names(trainData) %in% c('winner16'))],
+                   y = trainData$winner16)
+
+# Old: Notice that 'older' counties tend to heavily favor the Republican party!
+logReg <- glm(Class ~ old, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
+
+logPlot(old, '% of Population aged 65 and over', percent = TRUE)
+
+# Foreign: Notice that counties high in foreign born persons tend to favor Democrats.
+logReg <- glm(Class ~ foreign, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
+
+logPlot(foreign, '% Foreign Born Persons in Population', percent = TRUE)
