@@ -3,8 +3,6 @@ library(dplyr)
 library(ggplot2)
 library(scales)
 library(caret)
-library(choroplethr)
-library(choroplethrMaps)
 library(cowplot)
 rm(list = ls())
 
@@ -20,8 +18,7 @@ demogrSomeF <- function(...) {
   
   demogrSome <- filter(srcDemogr, state_abbreviation %in% states) %>%
     select(fips = fips, state = state_abbreviation, county = area_name,
-           income = INC110213, education = EDU685213, density = POP060210,
-           white = RHI825214, hispanic = RHI725214, household = HSD310213) %>%
+           income = INC110213, education = EDU685213, old = AGE775214, foreign = POP645213) %>%
     mutate(county = tolower(gsub(' County', '', county)))
   
   assign('demogrSome', demogrSome, envir = globalenv())
@@ -29,11 +26,8 @@ demogrSomeF <- function(...) {
 
 demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
 
-main <- merge(demogrSome, select(srcElections, -c('state', 'county')), by = 'fips')
-
-# unemp <- mutate(srcUnemp, county = tolower(county))
-
-# main <- merge(merge(merge(merge(pres, demogrSome), unemp), rgdp), pop)
+main <- merge(merge(demogrSome, select(srcElections, -c('state', 'county')), by = 'fips'),
+              select(srcUnemp, -c('state', 'county')), by = 'fips')
 
 rm(demogrSome)
 
@@ -41,9 +35,9 @@ attach(main)
 main$trumpWin <- ifelse(trump16 > clinton16 & trump16 > otherpres16, 1, 0) %>%
   factor(levels = c(0, 1))
 
-main$obamaVotes <- obama12 / (romney12 + obama12 + otherpres12)
+main$obamaVotes <- obama12 / (romney12 + obama12 + otherpres12) * 100
 
-main$romneyVotes <- romney12 / (romney12 + obama12 + otherpres12)
+main$romneyVotes <- romney12 / (romney12 + obama12 + otherpres12) * 100
 
 main$repDelta <- ((trump16 / (trump16 + clinton16 + otherpres16)) -
                     (romney12 / (romney12 + obama12 + otherpres12))) /
@@ -68,7 +62,7 @@ upData <- upSample(x = trainData[!(names(trainData) %in% c('trumpWin'))],
                    y = trainData$trumpWin)
 
 ## SECTION 4. Logistic Regression Model
-logReg <- glm(Class ~ romneyVotes, family = 'binomial', data = upData)
+logReg <- glm(Class ~ obamaVotes, family = 'binomial', data = upData)
 summary(logReg)
 exp(coef(logReg))
 
@@ -105,23 +99,75 @@ logPlot <- function(metric, xlab, percent) {
     labs(x = xlab, y = 'P (Republicans Winning)', color = 'Trump')
 }
 
-# Education
+# Obama
 logReg <- glm(Class ~ obamaVotes, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
 logPlot(obamaVotes, '% Obama Votes in 2012', percent = TRUE)
 
+# Romney
 logReg <- glm(Class ~ romneyVotes, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
 logPlot(romneyVotes, '% Romney Votes in 2012', percent = TRUE)
 
+# Old
+logReg <- glm(Class ~ old, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
+logPlot(old, '% Population Aged 65 and over', percent = TRUE)
 
+# Foreign
+logReg <- glm(Class ~ foreign, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
+logPlot(foreign, '% Foreigners in Population', percent = TRUE)
 
+## SECTION 6. Plot Linear Regression Models
+main[, c('cutoff', 'prob', 'predict', 'trumpWin')] <- NULL
+
+attach(main)
+main$trumpVotes <- trump16 / (trump16 + clinton16 + otherpres16)
+main$unempDelta <- (unemp_rate16 - unemp_rate12) / unemp_rate12
+main$unempDeltaNorm <- (unempDelta - min(unempDelta)) / (max(unempDelta) - min(unempDelta))
+detach(main)
+
+# Counties with increasing unemployment rates from 2012 to 2015 tend to favor Trump.
+linReg <- lm(trumpVotes ~ unempDeltaNorm, data = main)
+summary(linReg)
+
+ggplot(main, aes(x = unempDeltaNorm, y = trumpVotes)) +
+  geom_point() +
+  geom_smooth(method = 'lm', formula = y ~ x) +
+  scale_x_log10() +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = '% Change in Unemployment 2012-2015 (Rescaled 0-1)', y = '% Votes for Trump')
+
+# The elderly tend to favor Trump.
+linReg <- lm(trumpVotes ~ old, data = main)
+summary(linReg)
+
+ggplot(main, aes(x = old / 100, y = trumpVotes)) +
+  geom_point() +
+  geom_smooth(method = 'lm', formula = y ~ x) +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = '% Population Aged 65 and over', y = '% Votes for Trump')
+
+# Foreigners tend to disfavor Trump.
+linReg <- lm(trumpVotes ~ foreign, data = main)
+summary(linReg)
+
+ggplot(main, aes(x = foreign / 100, y = trumpVotes)) +
+  geom_point() +
+  geom_smooth(method = 'lm', formula = y ~ x) +
+  scale_x_log10(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = '% Foreigners in Population', y = '% Votes for Trump')
 
 
 
