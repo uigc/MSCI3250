@@ -11,14 +11,14 @@ srcPrimary <- read.csv('primary_results.csv', stringsAsFactors = FALSE, encoding
 srcDemogr <- read.csv('county_facts.csv', stringsAsFactors = FALSE, encoding = 'UTF-8')
 srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE, encoding = 'UTF-8')
 
-# Load real gross domestic product (RGDP) data for all counties. We won't be using
-# this data set until Section #7.
-srcRgdp <- read.csv('county_rgdp.csv', stringsAsFactors = FALSE,
-                    check.names = FALSE, encoding = 'UTF-8')
+# Load county real gross domestic product (RGDP) and population data.
+# We'll use these data sets in Section #7.
+srcRgdp <- read.csv('county_rgdp.csv', stringsAsFactors = FALSE, encoding = 'UTF-8')
+srcPop <- read.csv('county_pop.csv', stringsAsFactors = FALSE, encoding = 'UTF-8')
 
 ## SECTION 2. Cleanup Primary Results Data
-# It is important to change county names to lower case (for all data sets) to prevent
-# merging duplicates or errors later on; e.g. 'St Louis City' and 'St Louis city'
+# It's important to change county names to lower case (for all data sets) to prevent future
+# merging duplicates or errors; e.g. 'St Louis City' vs 'St Louis city'
 primary <- select(srcPrimary, fips = fips, state = state_abbreviation,
                   county = county, candidate = candidate, party = party,
                   votes = votes, fraction_votes = fraction_votes) %>%
@@ -33,11 +33,10 @@ primary <- select(srcPrimary, fips = fips, state = state_abbreviation,
 # RHI725214: Hispanic or Latino, percent, 2014
 # HSD310213: Persons per household, 2009-2013
 # 
-# We might be interested in certain states and not the whole nation.
-# The 'demogrSomeF()' function simply returns the demographic data we have
-# selected above for each county in states specified by the user.
-# 'demogrSomeF()' function usage: Input state abbreviations (not full state
-# names) as function arguments. Quotations or capitalizations are not necessary.
+# We might be interested in certain states and not the whole nation. The 'demogrSomeF()'
+# function returns the county demographic data we selected above in states specified by
+# the user. Function usage: Input state abbreviations (not full state names) as function
+# arguments. Quotations or capitalizations are not necessary.
 demogrSomeF <- function(...) {
   states <- gsub('\"', '', toupper(sapply(substitute(list(...)), deparse)[-1]))
   
@@ -53,21 +52,20 @@ demogrSomeF <- function(...) {
 # We'll focus on the Midwest:
 demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
 
-# Merge primary results with filtered demographic data for the Midwest.
-main <- merge(primary, demogrSome, by = c('fips', 'state', 'county'))
-
 # Let's narrow down the list of candidates to some 'big names':
 candidates <- c('Donald Trump', 'Ted Cruz', 'Hillary Clinton', 'Bernie Sanders')
 
+# Merge primary results with filtered county demographic data for the Midwest.
+main <- merge(primary, demogrSome, by = c('fips', 'state', 'county')) %>%
+  filter(candidate %in% candidates)
+
 # For each party, find the primary winners of each county in the Midwest.
 winners <- rbind(
-  group_by(primary, fips, state, county, party) %>%
-    filter(party == 'Democrat') %>%
+  group_by(primary, fips, state, county, party) %>% filter(party == 'Democrat') %>%
     summarize(winner = candidate[which.max(fraction_votes)],
               votes = max(votes),
               fraction_votes = max(fraction_votes)),
-  group_by(primary, fips, state, county, party) %>%
-    filter(party == 'Republican') %>%
+  group_by(primary, fips, state, county, party) %>% filter(party == 'Republican') %>%
     summarize(winner = candidate[which.max(fraction_votes)],
               votes = max(votes),
               fraction_votes = max(fraction_votes))
@@ -93,21 +91,23 @@ ggplot(winners, aes(x = income, y = household)) +
 # Simple boxplot of primary winners and the income demographic they attract:
 ggplot(winners, aes(x = winner, y = income, fill = winner)) +
   geom_boxplot() +
-  scale_y_continuous(labels = dollar) +
+  scale_y_continuous(labels = dollar,
+                     limits = boxplot.stats(winners$income)$stats[c(1, 5)]) +
   labs(y = 'Median Household Income', x = 'Candidate') +
   coord_flip() +
   theme(legend.position = 'none')
 
+# Clear unused objects
+rm(demogrSome, primary)
+
 ## SECTION 4. Extract Candidate Data by County and Demographics
-# Keep in mind that that we're still focusing on only 4 selected candidates in
-# the Midwest.
+# Keep in mind that that we're still focusing on only 4 big candidates in the Midwest.
 # Instead of winners, we'll now focus on each candidate and their performance
 # (fraction_votes) in all Midwestern counties.
 
-# The loop below basically populates a list (cddList) with data frames.
-# Each candidate we choose has a data frame containing his/her performance in all
-# Midwestern counties, merged with demographic data. Each data frame can be further
-# expanded column-wise as we gather more metrics.
+# The loop below populates the list 'cddList' with data frames. Each of the 4 candidates
+# has a data frame containing his/her performance in all Midwestern counties, merged with
+# county demographic data.
 cddList <- list()
 
 for (i in candidates) {
@@ -116,50 +116,51 @@ for (i in candidates) {
   # Name each item in the list (each data frame) with the candidate's last name
   names(cddList)[match(i, candidates)] <- strsplit(i, ' ') %>%
     sapply('[[', length(unlist(strsplit(i, ' '))))
+  
+  rm (i)
 }
 
-## 5. Build Plot Functions
-# We now have a populated list of candidates and their respective vote statistics
-# merged with demographic data in 'cddList'.
+## SECTION 5. Build Plot Functions
+# We now have a populated list of candidates and their respective vote statistics merged
+# with demographics in 'cddList'.
 # 
 # Next, we'll plot the fraction of votes (a performance metric) for each candidate
-# against various demographic data. We'll build functions to maintain consistency,
+# against various demographic metrics. We'll build functions to maintain consistency,
 # reduce clutter, reduce the potential for mistakes.
 # 
 # Usage: Input a single demographic metric in quotes; e.g. cddPlot('income')
-# This metric (the function argument) will be the explanatory variable (x-axis).
+# The metric (the function argument) will be the explanatory variable (x-axis).
 cddPlot <- function(metric) {
   plot_grid(plotlist = lapply(cddList, function(df)
     ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
       geom_point() +
-      geom_smooth(method = 'lm', formula = y~x) +
+      geom_smooth(method = 'lm', formula = y ~ x) +
       ggtitle(label = df[1, 'candidate']) +
       theme(axis.title.x = element_blank(), axis.title.y = element_blank(),
             plot.title = element_text(size = 12))), align = 'h')
   }
 
-# It's not exactly clear when to use a log scale, but it's probably a good idea
-# when small values are compressed down to the bottom of the graph. Use this
-# plotting function instead for a log transformation of the x-axis.
+# It's not exactly clear when to use a log scale, but it's probably a good idea when small
+# values are compressed down to the bottom of the graph. Use this plotting function instead
+# for a log transformation of the x-axis.
 # Usage: Input demographic metric in quotes; e.g. cddPlotLog('income')
 cddPlotLog <- function(metric) {
   plot_grid(plotlist = lapply(cddList, function(df)
     ggplot(df, aes(x = eval(parse(text = metric)), y = fraction_votes)) +
       geom_point() +
       scale_x_log10() +
-      geom_smooth(method = 'lm', formula = y~x) +
+      geom_smooth(method = 'lm', formula = y ~ x) +
       ggtitle(label = df[1, 'candidate']) +
       theme(axis.title.x = element_blank(), axis.title.y = element_blank(),
             plot.title = element_text(size = 12))), align = 'h')
   }
 
 # Plot fraction_votes as a function of log 'education':
-# A negative slope of the regression line means that the fraction of votes in a
-# county decreases as the log of percentage of population with a bachelor's degree
-# or higher increases. In the case of Donald Trump, the fraction of votes for him
-# tends to decrease in areas of high log 'education'. OTOH, Bernie Sanders enjoy
-# high popularity in areas of high log 'education'.
-# Keep in mind that this is without significance tests.
+# A negative slope of the regression line means that the fraction of votes in a county
+# decreases as the log of percentage of population with a bachelor's degree or higher
+# increases. In the case of Donald Trump, the fraction of votes for him tends to decrease
+# in areas of high log 'education'. OTOH, Bernie Sanders enjoy high popularity in areas of
+# high log 'education'. Keep in mind that this is without significance tests.
 cddPlotLog('education')
 
 # Plot fraction_votes as a function of 'income'
@@ -175,14 +176,14 @@ cddPlotLog('hispanic')
 # Ted Cruz seems to be largely popular with large households.
 cddPlot('household')
 
-## 6. Regression Models
+## SECTION 6. Regression Models
 # Run a linear regression model of 'fraction_votes' as a function of 'income',
 # 'hispanic', and 'household.' Store the results for each candidate in a list.
 linRegResults <- list()
 
 for (i in candidates) {
   linRegResults[[match(i, candidates)]] <-
-    summary(lm(fraction_votes~income + hispanic + household,
+    summary(lm(fraction_votes ~ income + hispanic + household,
                data = cddList[[strsplit(i, ' ') %>%
                                  sapply('[[', length(unlist(strsplit(i, ' '))))]]
                ))
@@ -194,71 +195,69 @@ for (i in candidates) {
 # The results can accessed via each candidate's last name.
 linRegResults['Trump']
 
-## 7. Incorporating Real Gross Domestic Product
-# Join the demographic data of the 5 states with the real GDP dataset.
-demogrSome <- inner_join(demogrSome, srcRgdp, by = c('state', 'county'))
+## SECTION 7. Incorporating Real Gross Domestic Product
+# Join the demographic data of the 5 states with the RGDP and population data sets.
+main <- inner_join(inner_join(main, mutate(srcRgdp, county = tolower(county)),
+                              by = c('state', 'county')),
+                   mutate(srcPop, county = tolower(county)), by = c('fips', 'county'))
 
-# Compute RGDP per capita. Since we're only provided with 2014 population data
-# in 'srcDemogr', we'll compute RGDP per capita in 2014.
-demogrSome$rgdppc14 <- demogrSome$rgdp2014 / demogrSome$pop14
+# Compute 2012 and 2015 RGDP per capita.
+main$rgdppc12 <- main$rgdp2012 / main$pop2012
+main$rgdppc15 <- main$rgdp2015 / main$pop2015
 
-# We can derive trends from annual data. A simple trend would be to calculate
-# the decimal real GDP change from 2012 to 2015.
-demogrSome$rgdpDelta <- (demogrSome$rgdp2015 - demogrSome$rgdp2012) /
-  demogrSome$rgdp2012
+# We can derive trends from annual data. A simple trend would be to calculate RGDP per
+# capita change from 2012 to 2015 (decimals).
+main$rgdppcDelta <- (main$rgdppc15 - main$rgdppc12) / main$rgdppc12
 
-# We may need to perform log transformations, so negative values (decreasing
-# real GDP) will be ignored (undefined)! We'll normalize 'rgdpDelta' by
-# rescaling it from 0 to 1.
-demogrSome$rgdpDeltaNorm <- (demogrSome$rgdpDelta - min(demogrSome$rgdpDelta)) /
-  (max(demogrSome$rgdpDelta) - min(demogrSome$rgdpDelta))
+# We may need to perform log transformations, but negative values (decreasing trend) will
+# will be ignored (undefined)! We'll normalize 'rgdpDelta' by rescaling it from 0 to 1.
+main$rgdppcDeltaNorm <- (main$rgdppcDelta - min(main$rgdppcDelta)) /
+  (max(main$rgdppcDelta) - min(main$rgdppcDelta))
 
-# Join the list of candidates with vote and demographic data 'cddList' we
-# created earlier with all real gdp data.
+# Join (update) the list of candidates 'cddList' we created earlier with new data.
 for (i in seq(length(cddList))) {
-  cddList[[i]] <- merge(cddList[[i]], demogrSome)
+  cddList[[i]] <- merge(cddList[[i]], main)
+  rm(i)
 }
 
-# Notice Ted Cruz's popularity decline in areas of high RGDP per capita.
-cddPlotLog('rgdppc14')
+# Notice Ted Cruz's popularity decline in areas of high log RGDP per capita.
+cddPlotLog('rgdppc15')
 
-# Notice Donald Trump's popularity increase in areas of increasing RGDP from
-# 2012 to 2015. Earlier, we noticed that Donald Trump's probability of winning
-# increases as the median household income decreases. We can infer that Trump's
-# chance of winning increases in areas of low income and increasing RGDP.
-# Important: This is within our 5 chosen states.
-cddPlotLog('rgdpDeltaNorm')
+# Notice Donald Trump's popularity increase in areas of increasing log RGDP per capita from
+# 2012 to 2015. Earlier, we noticed that Donald Trump's probability of winning increases as
+# median household income decreases. We can infer that Trump's chance of winning is high
+# in areas of low income but increasing RGDP per capita.
+cddPlotLog('rgdppcDeltaNorm')
 
-# To be safe, we'll perform a correlation test to make sure that the explanatory
-# variables 'income' and 'rgdpDelta' are not significantly correlated to each other.
-# The null hypothesis is that the true correlation is equal to 0. Since the P-value
-# is 0.2834, we cannot reject the null hypothesis and must conclude that there is
-# no significant correlation. This is a simple test for multicollinearity.
-cor.test(demogrSome$income, demogrSome$rgdpDelta, method = 'pearson')
+# To be safe, we'll perform a correlation test to make sure that the explanatory variables
+# 'income' and 'rgdppcDelta' are not significantly correlated to each other. The null
+# hypothesis is that the true correlation is equal to 0. Since the P-value is 0.2533, we
+# cannot reject the null hypothesis and must conclude that there is no significant
+# correlation. This is a simple test for multicollinearity.
+cor.test(main$income, main$rgdppcDelta, method = 'pearson')
 
-# With no significant correlation between predictor variables 'income' and
-# 'rgdpDelta', proceed with multiple regression and examine the output:
-summary(lm(fraction_votes~income + rgdpDelta, data = cddList[['Trump']]))
+# With no significant correlation between predictor variables 'income' and 'rgdppcDelta',
+# we'll proceed with multiple regression and examine the output:
+summary(lm(fraction_votes ~ income + rgdppcDelta, data = cddList[['Trump']]))
 
-# Join each party with our updated 'demogrSome' data frame.
-combdRep <- inner_join(demogrSome, votesRep, by = c('state', 'county'))
-combdDem <- inner_join(demogrSome, votesDem, by = c('state', 'county'))
+# Join each party with our updated 'main' data frame.
+winners <- merge(winners, main)
 
 # Simple boxplot of Republican winners as a function of real GDP per capita.
 # We can remove some outliers using 'boxplot.stats(df$y)$stats[c(1, 5)]'
-ggplot(combdRep, aes(x = winner, y = rgdppc14, fill = winner)) +
+ggplot(winners, aes(x = winner, y = rgdppc15, fill = winner)) +
   geom_boxplot() +
   scale_y_continuous(labels = dollar,
-                     limits = boxplot.stats(combdRep$rgdppc14)$stats[c(1, 5)]) +
-	labs(y = 'Real GDP Per Capita (2014)', x = 'Candidate') +
+                     limits = boxplot.stats(winners$rgdppc15)$stats[c(1, 5)]) +
+	labs(y = 'Real GDP Per Capita (2015)', x = 'Candidate') +
   coord_flip() +
   theme(legend.position = 'none')
 
 # Boxplot of Republican winners as a function of real GDP change from 2012-2015.
-ggplot(combdRep, aes(x = winner, y = rgdpDelta, fill = winner)) +
+ggplot(winners, aes(x = winner, y = rgdppcDelta, fill = winner)) +
   geom_boxplot() +
   scale_y_continuous(labels = percent,
-                     limits = boxplot.stats(combdRep$rgdpDelta)$stats[c(1, 5)]) +
+                     limits = boxplot.stats(winners$rgdppcDelta)$stats[c(1, 5)]) +
   labs(y = expression(Delta * ' Real GDP 2012-2015'), x = 'Candidate') +
   coord_flip() +
   theme(legend.position = 'none')
