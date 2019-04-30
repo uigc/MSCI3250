@@ -9,7 +9,7 @@ library(choroplethrMaps)
 library(cowplot)
 rm(list = ls())
 
-## 1. Source Files
+## SECTION 1. Source Files
 srcPresident <- read.csv('county_presidential.csv', stringsAsFactors = FALSE)
 srcDemogr <- read.csv('county_facts.csv', stringsAsFactors = FALSE)
 srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE)
@@ -17,7 +17,7 @@ srcRgdp <- read.csv('county_rgdp.csv', stringsAsFactors = FALSE, check.names = F
 srcUnemp <- read.csv('county_unemployment.csv', stringsAsFactors = FALSE)
 srcPop <- read.csv('county_population.csv', stringsAsFactors = FALSE)
 
-## 2. Data Cleanup and Merging
+## SECTION 2. Data Cleanup and Merging
 pres <- select(srcPresident, fips = combined_fips, state = state_abbr,
                county = county_name,
                votesDem12 = votes_dem_2012, votesRep12 = votes_gop_2012,
@@ -46,7 +46,7 @@ main <- merge(merge(merge(merge(pres, demogrSome), unemp), rgdp), pop)
 
 rm(pres, demogrSome, unemp, rgdp, pop)
 
-## 3. Calculate Unemployment Change, Rgdp Change, 2016 winner
+## SECTION 3. Calculate Unemployment Change, Rgdp Change, 2016 winner
 main$unempDelta <- (main$unemp_rate15 - main$unemp_rate12) / main$unemp_rate12
 
 main$rgdppcDelta <- ((main$rgdp2015 / main$pop2015) - (main$rgdp2012 / main$pop2012)) /
@@ -55,7 +55,7 @@ main$rgdppcDelta <- ((main$rgdp2015 / main$pop2015) - (main$rgdp2012 / main$pop2
 main$winner16 <- ifelse(main$votesRep16 > main$votesDem16, 1, 0) %>%
   factor(levels = c(0, 1))
 
-## 4. Partition the Dataset
+## SECTION 4. Partition the Dataset
 rm(trainDataIndex, trainData, testData, upData, logReg)
 
 set.seed(42)
@@ -71,7 +71,7 @@ table(trainData$winner16)
 upData <- upSample(x = trainData[!(names(trainData) %in% c('winner16'))],
                    y = trainData$winner16)
 
-## 5. Logistic Regression Model
+## SECTION 5. Logistic Regression Model
 logReg <- glm(Class ~ income + education, family = 'binomial', data = upData)
 summary(logReg)
 exp(coef(logReg))
@@ -88,7 +88,7 @@ with(logReg, df.null - df.residual)
 with(logReg, pchisq(null.deviance - deviance, df.null - df.residual,
                     lower.tail = FALSE))
 
-## 6. Map Visualization
+## SECTION 6. Map Visualization
 # State names in 'choroplethr' must be formatted correctly
 states <- c('illinois', 'indiana', 'iowa', 'kansas', 'michigan', 'minnesota', 'missouri',
             'nebraska', 'north dakota', 'ohio', 'south dakota', 'wisconsin')
@@ -123,7 +123,7 @@ county_choropleth(accuracyDf, state_zoom = states, title = 'Model Accuracy') +
                     labels = c('Correct', 'Wrong'),
                     name = 'Result')
 
-## 7. Plot Logistic Regression Models
+## SECTION 7. Plot Logistic Regression Models
 # We'll build a function to plot consistent logistic regression plots. The function has
 # 2 required and 1 optional arguments. Required: A single 'metric' as the x-axis, 'xlab'
 # as the x-axis label. Optional: Set 'percent' as TRUE if the metric is in the percent
