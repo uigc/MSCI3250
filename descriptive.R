@@ -91,9 +91,9 @@ group_by(winners, winner) %>%
   dplyr::rename(candidate = winner)
 
 # Simple scatterplot of primary winners based on household and income:
-ggplot(winners, aes(x = income, y = household)) +
+ggplot(winners, aes(x = education, y = income)) +
   geom_point(aes(color = winner, size = votes)) +
-  labs(y = 'Median Household Income', x = '% Persons with Bachelor\'s or higher') +
+  labs(x = '% Persons with Bachelor\'s or higher', y = 'Median Household Income ($)') +
   scale_color_discrete(winners$winner, name = 'Candidate') +
   guides(size = FALSE)
 ggsave(filename = 'plot_desc_01.png', plot = last_plot(), width = 10, height = 6)
@@ -113,7 +113,7 @@ rm(demogrSome, primary)
 
 ## SECTION 4. Extract Candidate Data by County and Demographics
 # Keep in mind that that we're still focusing on only 4 big candidates in the region (Midwest
-# for this example). Instead of winners, we'll now focus on each candidate and their performance
+# in this example). Instead of winners, we'll now focus on each candidate and their performance
 # (fraction_votes) in all Midwestern counties.
 
 # The loop below populates the list 'cddList' with data frames. Each of the 4 candidates
@@ -170,8 +170,8 @@ cddPlotLog <- function(metric) {
 # A negative slope of the regression line means that the fraction of votes in a county
 # decreases as the log of percentage of population with a bachelor's degree or higher
 # increases. In the case of Donald Trump, the fraction of votes for him tends to decrease
-# in areas of high log 'education'. OTOH, Bernie Sanders enjoy high popularity in areas of
-# high log 'education'. Keep in mind that this is without significance tests.
+# in areas of high log 'education'. On the other hand, Bernie Sanders enjoy high popularity
+# in areas of high log 'education'.
 cddPlotLog('education')
 ggsave(filename = 'plot_desc_03.png', plot = last_plot(), width = 10, height = 6)
 
