@@ -18,13 +18,20 @@ demogrSomeF <- function(...) {
   
   demogrSome <- filter(srcDemogr, state_abbreviation %in% states) %>%
     select(fips = fips, state = state_abbreviation, county = area_name,
-           income = INC110213, education = EDU685213, old = AGE775214, foreign = POP645213) %>%
+           income = INC110213, education = EDU685213, old = AGE775214,
+           foreign = POP645213, vet = VET605213) %>%
     mutate(county = tolower(gsub(' County', '', county)))
   
   assign('demogrSome', demogrSome, envir = globalenv())
 }
-
+# Midwest:
 demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
+# Northeast:
+demogrSomeF(CT, ME, MA, NH, NJ, NY, PA, RI, VT)
+# South:
+demogrSomeF(AL, AR, DE, FL, GA, KY, LA, MD, MS, NC, OK, SC, TN, TX, VA, WV)
+# West:
+demogrSomeF(AK, AZ, CA, CO, HI, ID, MT, NV, NM, OR, UT, WA, WY)
 
 main <- merge(merge(demogrSome, select(srcElections, -c('state', 'county')), by = 'fips'),
               select(srcUnemp, -c('state', 'county')), by = 'fips')
@@ -62,7 +69,7 @@ upData <- upSample(x = trainData[!(names(trainData) %in% c('trumpWin'))],
                    y = trainData$trumpWin)
 
 ## SECTION 4. Logistic Regression Model
-logReg <- glm(Class ~ obamaVotes, family = 'binomial', data = upData)
+logReg <- glm(Class ~ vet, family = 'binomial', data = upData)
 summary(logReg)
 exp(coef(logReg))
 
@@ -126,6 +133,11 @@ logReg <- glm(Class ~ foreign, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
+# Veterans
+logReg <- glm(Class ~ vet, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
+
 logPlot(foreign, '% Foreigners in Population', percent = TRUE)
 
 ## SECTION 6. Plot Linear Regression Models
@@ -170,17 +182,30 @@ ggplot(main, aes(x = foreign / 100, y = trumpVotes)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
   labs(x = '% Foreigners in Population', y = '% Votes for Trump')
 
-# Separate by State
+# The elderly tend to favor Trump.
+linReg <- lm(trumpVotes ~ vet, data = main)
+summary(linReg)
+
+ggplot(main, aes(x = vet, y = trumpVotes)) +
+  geom_point() +
+  geom_smooth(method = 'lm', formula = y ~ x) +
+  scale_x_log10(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = '% Population Aged 65 and over', y = '% Votes for Trump')
+
+  n# Separate by State
 ggplot(main, aes(x = old / 100, y = trumpVotes, color = state)) +
   geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
   scale_x_continuous(labels = percent_format(accuracy = 1)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% Population Aged 65 and over', y = '% Votes for Trump')
+  labs(x = '% Population Aged 65 and over', y = '% Votes for Trump',
+       color = 'State')
 
 ggplot(main, aes(x = foreign / 100, y = trumpVotes, color = state)) +
   geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
   scale_x_log10(labels = percent_format(accuracy = 1)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% Foreigners in Population', y = '% Votes for Trump')
+  labs(x = '% Foreigners in Population', y = '% Votes for Trump',
+       color = 'State')
 
 

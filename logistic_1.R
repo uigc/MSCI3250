@@ -35,8 +35,31 @@ demogrSomeF <- function(...) {
 	
 	assign('demogrSome', demogrSome, envir = globalenv())
 }
-
+# Midwest (12):
 demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
+# State names for choroplethR 'state_zoom':
+states <- c('illinois', 'indiana', 'iowa', 'kansas', 'michigan', 'minnesota', 'missouri',
+            'nebraska', 'north dakota', 'ohio', 'south dakota', 'wisconsin')
+
+# Northeast (9):
+demogrSomeF(CT, ME, MA, NH, NJ, NY, PA, RI, VT)
+# State names for choroplethR 'state_zoom':
+states <- c('connecticut', 'maine', 'massachusetts', 'new hampshire', 'new jersey',
+            'new york', 'pennsylvania', 'rhode island', 'vermont')
+
+# South (16):
+demogrSomeF(AL, AR, DE, FL, GA, KY, LA, MD, MS, NC, OK, SC, TN, TX, VA, WV)
+# State names for choroplethR 'state_zoom':
+states <- c('alabama', 'arkansas', 'delaware', 'florida', 'georgia',
+            'kentucky', 'louisiana', 'maryland', 'mississippi', 'north carolina',
+            'oklahoma', 'south carolina', 'tennessee', 'texas', 'virginia', 'west virginia')
+
+# West (13):
+demogrSomeF(AK, AZ, CA, CO, HI, ID, MT, NV, NM, OR, UT, WA, WY)
+# State names for choroplethR 'state_zoom':
+states <- c('alaska', 'arizona', 'california', 'colorado', 'hawaii',
+            'idaho', 'montana', 'nevada', 'new mexico', 'oregon',
+            'utah', 'washington', 'wyoming')
 
 unemp <- mutate(srcUnemp, county = tolower(county))
 rgdp <- mutate(srcRgdp, county = tolower(county))
@@ -89,10 +112,6 @@ with(logReg, pchisq(null.deviance - deviance, df.null - df.residual,
                     lower.tail = FALSE))
 
 ## SECTION 6. Map Visualization
-# State names in 'choroplethr' must be formatted correctly
-states <- c('illinois', 'indiana', 'iowa', 'kansas', 'michigan', 'minnesota', 'missouri',
-            'nebraska', 'north dakota', 'ohio', 'south dakota', 'wisconsin')
-
 # Plot actual 2016 results
 mapDf <- data.frame(region = main$fips,
                     value = ifelse(main$winner16 == 1, 'Republican', 'Democrat') %>%
