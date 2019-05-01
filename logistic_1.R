@@ -35,6 +35,7 @@ demogrSomeF <- function(...) {
 	
 	assign('demogrSome', demogrSome, envir = globalenv())
 }
+# Select one of four US regions:
 # Midwest (12):
 demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
 # State names for choroplethR 'state_zoom':
@@ -61,6 +62,7 @@ states <- c('alaska', 'arizona', 'california', 'colorado', 'hawaii',
             'idaho', 'montana', 'nevada', 'new mexico', 'oregon',
             'utah', 'washington', 'wyoming')
 
+# Merge other data sets
 unemp <- mutate(srcUnemp, county = tolower(county))
 rgdp <- mutate(srcRgdp, county = tolower(county))
 pop <- mutate(srcPop, county = tolower(county))
