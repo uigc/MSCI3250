@@ -58,8 +58,8 @@ demogrSomeF(AK, AZ, CA, CO, HI, ID, MT, NV, NM, OR, UT, WA, WY)
 # Midwest:
 demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
 
-# Important: The rest of the script were tested using 'Midwest' as the region. As such, the
-# model interpretations may be different if the user uses a different region. For the first
+# Important: The rest of the script were on the 'Midwest' region. As such, the model and
+# result interpretations may be different if the user uses a different region. For the first
 # run-through, using the 'Midwest' region is recommended.
 # Let's narrow down the list of candidates to some 'big names':
 candidates <- c('Donald Trump', 'Ted Cruz', 'Hillary Clinton', 'Bernie Sanders')
@@ -96,6 +96,7 @@ ggplot(winners, aes(x = income, y = household)) +
   labs(y = 'Median Household Income', x = '% Persons with Bachelor\'s or higher') +
   scale_color_discrete(winners$winner, name = 'Candidate') +
   guides(size = FALSE)
+ggsave(filename = 'plot_desc_01.png', plot = last_plot(), width = 10, height = 6)
 
 # Simple boxplot of primary winners and the income demographic they attract:
 ggplot(winners, aes(x = winner, y = income, fill = winner)) +
@@ -105,6 +106,7 @@ ggplot(winners, aes(x = winner, y = income, fill = winner)) +
   labs(y = 'Median Household Income', x = 'Candidate') +
   coord_flip() +
   theme(legend.position = 'none')
+ggsave(filename = 'plot_desc_02.png', plot = last_plot(), width = 10, height = 6)
 
 # Clear unused objects
 rm(demogrSome, primary)
@@ -171,19 +173,23 @@ cddPlotLog <- function(metric) {
 # in areas of high log 'education'. OTOH, Bernie Sanders enjoy high popularity in areas of
 # high log 'education'. Keep in mind that this is without significance tests.
 cddPlotLog('education')
+ggsave(filename = 'plot_desc_03.png', plot = last_plot(), width = 10, height = 6)
 
 # Plot fraction_votes as a function of 'income'
 # Trump's popularity drastically decrease as household income increase.
 cddPlot('income')
+ggsave(filename = 'plot_desc_04.png', plot = last_plot(), width = 10, height = 6)
 
 # Plot fraction_votes as a function of 'hispanic'
 # Compared to other candidates, Trump seems to be slightly unpopular in areas of
 # high log 'hispanic'.
 cddPlotLog('hispanic')
+ggsave(filename = 'plot_desc_05.png', plot = last_plot(), width = 10, height = 6)
 
 # Plot fraction_votes as a function of 'household'
 # Ted Cruz seems to be largely popular with large households.
 cddPlot('household')
+ggsave(filename = 'plot_desc_06.png', plot = last_plot(), width = 10, height = 6)
 
 ## SECTION 6. Incorporating RGDP and Population
 # Join the region demographic data with the RGDP and population data sets.
@@ -212,12 +218,14 @@ for (i in seq(length(cddList))) {
 
 # Notice Ted Cruz's popularity decline in areas of high log RGDP per capita.
 cddPlotLog('rgdppc15')
+ggsave(filename = 'plot_desc_07.png', plot = last_plot(), width = 10, height = 6)
 
 # Notice Donald Trump's popularity increase in areas of increasing log RGDP per capita from
 # 2012-2015. Earlier, we noticed that Donald Trump's probability of winning increases as
 # median household income decreases. We can infer that Trump's chance of winning is high
 # in areas of low income but increasing RGDP per capita.
 cddPlotLog('rgdppcDeltaNorm')
+ggsave(filename = 'plot_desc_08.png', plot = last_plot(), width = 10, height = 6)
 
 # To be safe, we'll perform a correlation test to make sure that the explanatory variables
 # 'income' and 'rgdppcDelta' are not significantly correlated to each other. The null
@@ -242,6 +250,7 @@ ggplot(winners, aes(x = winner, y = rgdppc15, fill = winner)) +
 	labs(y = 'Real GDP Per Capita (2015)', x = 'Candidate') +
   coord_flip() +
   theme(legend.position = 'none')
+ggsave(filename = 'plot_desc_09.png', plot = last_plot(), width = 10, height = 6)
 
 # Boxplot of Republican winners as a function of RGDP change from 2012-2015.
 ggplot(winners, aes(x = winner, y = rgdppcDelta, fill = winner)) +
@@ -251,3 +260,4 @@ ggplot(winners, aes(x = winner, y = rgdppcDelta, fill = winner)) +
   labs(y = expression(Delta * ' Real GDP 2012-2015'), x = 'Candidate') +
   coord_flip() +
   theme(legend.position = 'none')
+ggsave(filename = 'plot_desc_10.png', plot = last_plot(), width = 10, height = 6)
