@@ -160,12 +160,13 @@ logPlot <- function(metric, xlab, percent) {
   }
   
   ggplot(main, aes(x = main[, metric], y = predict)) +
-    geom_point(shape = 1, aes(color = as.factor(predict))) +
-    scale_color_manual(labels = c('0' = 'D', '1' = 'R'),
-                       values = c('0' = 'Blue', '1' = 'Red')) +
-    geom_line(aes(y = main$prob), lwd = 1.5) +
+    geom_point(shape = 21, size = 2, aes(fill = as.factor(predict))) +
+    scale_fill_manual(values = c('1' = '#F8766D', '0' = '#619CFF'),
+                      labels = c('1' = 'R', '0' = 'D')) +
+    geom_line(aes(y = main$prob, color = state), lwd = 1.3) +
     scale_x_continuous(labels = label) +
-    labs(x = xlab, y = 'P (Republicans Winning)', color = 'Party')
+    labs(x = xlab, y = 'P (Republicans Winning)',
+         fill = 'Party', color = 'State')
 }
 
 # Education
@@ -174,6 +175,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(education, '% Population with Bachelor\'s or Higher', percent = TRUE)
+ggsave(filename = 'plot_log_education.png', plot = last_plot(), width = 10, height = 6)
 
 # Hispanic
 logReg <- glm(Class ~ hispanic, family = 'binomial', data = upData)
@@ -181,6 +183,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(hispanic, '% Hispanic or Latino Population', percent = TRUE)
+ggsave(filename = 'plot_log_hispanic.png', plot = last_plot(), width = 10, height = 6)
 
 # White
 logReg <- glm(Class ~ white, family = 'binomial', data = upData)
@@ -188,6 +191,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(white, '% White Population', percent = TRUE)
+ggsave(filename = 'plot_log_white.png', plot = last_plot(), width = 10, height = 6)
 
 # We'll add a two more interesting demographic data to the 'main' data frame:
 # AGE775214: Persons 65 years and over, percent, 2014

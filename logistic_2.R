@@ -119,7 +119,7 @@ logPlot <- function(metric, xlab, percent) {
                       labels = c('1' = 'Win', '0' = 'Lose')) +
     geom_line(aes(y = main$prob, color = state), lwd = 1.3) +
     scale_x_continuous(labels = label) +
-    labs(x = xlab, y = 'P (Republicans Winning)',
+    labs(x = xlab, y = 'P (Trump Winning)',
          fill = 'Trump', color = 'State')
 }
 
@@ -129,6 +129,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
 logPlot(obamaVotes, '% Obama Votes in 2012', percent = TRUE)
+ggsave(filename = 'plot_log_obama.png', plot = last_plot(), width = 10, height = 6)
 
 # Romney
 logReg <- glm(Class ~ romneyVotes, family = 'binomial', data = upData)
@@ -136,6 +137,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
 logPlot(romneyVotes, '% Romney Votes in 2012', percent = TRUE)
+ggsave(filename = 'plot_log_romney.png', plot = last_plot(), width = 10, height = 6)
 
 # Old
 logReg <- glm(Class ~ old, family = 'binomial', data = upData)
@@ -143,11 +145,15 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
 logPlot(old, '% Population Aged 65 and over', percent = TRUE)
+ggsave(filename = 'plot_log_old.png', plot = last_plot(), width = 10, height = 6)
 
 # Foreign
 logReg <- glm(Class ~ foreign, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
+
+logPlot(foreign, '% Foreigners in Population', percent = TRUE)
+ggsave(filename = 'plot_log_foreign.png', plot = last_plot(), width = 10, height = 6)
 
 # Veterans
 logReg <- glm(Class ~ vet2016, family = 'binomial', data = upData)
@@ -155,6 +161,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
 logPlot(vet2016, '% Veterans in Population', percent = TRUE)
+ggsave(filename = 'plot_log_vet.png', plot = last_plot(), width = 10, height = 6)
 
 ## SECTION 6. Plot Linear Regression Models
 main[, c('cutoff', 'prob', 'predict', 'trumpWin')] <- NULL
@@ -208,6 +215,7 @@ ggplot(main, aes(x = vet2016 / 100, y = trumpVotes)) +
 ggsave(filename = 'plot_lin_vet.png', plot = last_plot(), width = 10, height = 6)
 
 # Separate by State
+# Old
 ggplot(main, aes(x = old / 100, y = trumpVotes, color = state)) +
   geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
   scale_x_continuous(labels = percent_format(accuracy = 1)) +
@@ -216,6 +224,7 @@ ggplot(main, aes(x = old / 100, y = trumpVotes, color = state)) +
        color = 'State')
 ggsave(filename = 'plot_lin_old_state.png', plot = last_plot(), width = 10, height = 6)
 
+# Foreign
 ggplot(main, aes(x = foreign / 100, y = trumpVotes, color = state)) +
   geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
   scale_x_log10(labels = percent_format(accuracy = 1)) +
@@ -224,6 +233,7 @@ ggplot(main, aes(x = foreign / 100, y = trumpVotes, color = state)) +
        color = 'State')
 ggsave(filename = 'plot_lin_foreign_state.png', plot = last_plot(), width = 10, height = 6)
 
+# Veterans
 ggplot(main, aes(x = vet2016 / 100, y = trumpVotes, color = state)) +
   geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
   scale_x_log10(labels = percent_format(accuracy = 1)) +
