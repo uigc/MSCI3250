@@ -11,19 +11,21 @@ srcElections <- read.csv('county_elections.csv', stringsAsFactors = FALSE)
 srcDemogr <- read.csv('county_facts.csv', stringsAsFactors = FALSE)
 srcDict <- read.csv('county_facts_dictionary.csv', stringsAsFactors = FALSE)
 srcUnemp <- read.csv('county_unemployment.csv', stringsAsFactors = FALSE)
+srcPop <- read.csv('county_population.csv', stringsAsFactors = FALSE)
+srcVet <- read.csv('county_veterans.csv', strip.white = FALSE)
 
 ## SECTION 2. Data Merging and Calculations
 demogrSomeF <- function(...) {
   states <- gsub('\"', '', toupper(sapply(substitute(list(...)), deparse)[-1]))
   
   demogrSome <- filter(srcDemogr, state_abbreviation %in% states) %>%
-    select(fips = fips, state = state_abbreviation, county = area_name,
-           income = INC110213, education = EDU685213, old = AGE775214,
-           foreign = POP645213, vet = VET605213) %>%
+    select(fips, state = state_abbreviation, county = area_name, income = INC110213,
+           education = EDU685213, old = AGE775214, foreign = POP645213) %>%
     mutate(county = tolower(gsub(' County', '', county)))
   
   assign('demogrSome', demogrSome, envir = globalenv())
 }
+# Select one of four US regions:
 # Midwest:
 demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
 # Northeast:
@@ -36,7 +38,15 @@ demogrSomeF(AK, AZ, CA, CO, HI, ID, MT, NV, NM, OR, UT, WA, WY)
 main <- merge(merge(demogrSome, select(srcElections, -c('state', 'county')), by = 'fips'),
               select(srcUnemp, -c('state', 'county')), by = 'fips')
 
-rm(demogrSome)
+vets <- (merge(select(srcPop, fips, pop2015, pop2016),
+               select(srcVet, fips, vet2015, vet2016), by = 'fips'))
+
+vets$vet2015 <- vets$vet2015 / vets$pop2015 * 100
+vets$vet2016 <- vets$vet2016 / vets$pop2016 * 100
+
+main <- merge(main, select(vets, fips, vet2015, vet2016), by = 'fips')
+
+rm(demogrSome, vets)
 
 attach(main)
 main$trumpWin <- ifelse(trump16 > clinton16 & trump16 > otherpres16, 1, 0) %>%
@@ -51,6 +61,12 @@ main$repDelta <- ((trump16 / (trump16 + clinton16 + otherpres16)) -
   (romney12 / (romney12 + obama12 + otherpres12))
 
 main$cutoff <- 1 - (trump16 / (trump16 + clinton16 + otherpres16))
+
+main$trumpVotes <- trump16 / (trump16 + clinton16 + otherpres16)
+
+main$unempDelta <- (unemp_rate16 - unemp_rate12) / unemp_rate12
+
+main$unempDeltaNorm <- (unempDelta - min(unempDelta)) / (max(unempDelta) - min(unempDelta))
 detach(main)
 
 ## SECTION 3. Prediction Model
@@ -134,22 +150,16 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
 # Veterans
-logReg <- glm(Class ~ vet, family = 'binomial', data = upData)
+logReg <- glm(Class ~ vet2016, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > main$cutoff, 1, 0)
 
-logPlot(foreign, '% Foreigners in Population', percent = TRUE)
+logPlot(vet2016, '% Veterans in Population', percent = TRUE)
 
 ## SECTION 6. Plot Linear Regression Models
 main[, c('cutoff', 'prob', 'predict', 'trumpWin')] <- NULL
 
-attach(main)
-main$trumpVotes <- trump16 / (trump16 + clinton16 + otherpres16)
-main$unempDelta <- (unemp_rate16 - unemp_rate12) / unemp_rate12
-main$unempDeltaNorm <- (unempDelta - min(unempDelta)) / (max(unempDelta) - min(unempDelta))
-detach(main)
-
-# Counties with increasing unemployment rates from 2012 to 2015 tend to favor Trump.
+# Counties with increasing unemployment rates from 2012 to 2015 tend to favor Trump (log).
 linReg <- lm(trumpVotes ~ unempDeltaNorm, data = main)
 summary(linReg)
 
@@ -158,7 +168,8 @@ ggplot(main, aes(x = unempDeltaNorm, y = trumpVotes)) +
   geom_smooth(method = 'lm', formula = y ~ x) +
   scale_x_log10() +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% Change in Unemployment 2012-2015 (Rescaled 0-1)', y = '% Votes for Trump')
+  labs(x = 'Log Change in Unemployment 2012-2015 (Rescaled 0-1)', y = '% Votes for Trump')
+ggsave(filename = 'plot_lin_unemp.png', plot = last_plot(), width = 10, height = 6)
 
 # The elderly tend to favor Trump.
 linReg <- lm(trumpVotes ~ old, data = main)
@@ -170,8 +181,9 @@ ggplot(main, aes(x = old / 100, y = trumpVotes)) +
   scale_x_continuous(labels = percent_format(accuracy = 1)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
   labs(x = '% Population Aged 65 and over', y = '% Votes for Trump')
+ggsave(filename = 'plot_lin_old.png', plot = last_plot(), width = 10, height = 6)
 
-# Foreigners tend to disfavor Trump.
+# Foreigners tend to disfavor Trump (log).
 linReg <- lm(trumpVotes ~ foreign, data = main)
 summary(linReg)
 
@@ -180,32 +192,42 @@ ggplot(main, aes(x = foreign / 100, y = trumpVotes)) +
   geom_smooth(method = 'lm', formula = y ~ x) +
   scale_x_log10(labels = percent_format(accuracy = 1)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% Foreigners in Population', y = '% Votes for Trump')
+  labs(x = 'Log % Foreigners in Population', y = '% Votes for Trump')
+ggsave(filename = 'plot_lin_foreign.png', plot = last_plot(), width = 10, height = 6)
 
-# The elderly tend to favor Trump.
-linReg <- lm(trumpVotes ~ vet, data = main)
+# Veterans tend to favor Trump (log).
+linReg <- lm(trumpVotes ~ vet2016, data = main)
 summary(linReg)
 
-ggplot(main, aes(x = vet, y = trumpVotes)) +
+ggplot(main, aes(x = vet2016 / 100, y = trumpVotes)) +
   geom_point() +
   geom_smooth(method = 'lm', formula = y ~ x) +
   scale_x_log10(labels = percent_format(accuracy = 1)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% Population Aged 65 and over', y = '% Votes for Trump')
+  labs(x = 'Log % Veterans in Population', y = '% Votes for Trump')
+ggsave(filename = 'plot_lin_vet.png', plot = last_plot(), width = 10, height = 6)
 
-  n# Separate by State
+# Separate by State
 ggplot(main, aes(x = old / 100, y = trumpVotes, color = state)) +
   geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
   scale_x_continuous(labels = percent_format(accuracy = 1)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
   labs(x = '% Population Aged 65 and over', y = '% Votes for Trump',
        color = 'State')
+ggsave(filename = 'plot_lin_old_state.png', plot = last_plot(), width = 10, height = 6)
 
 ggplot(main, aes(x = foreign / 100, y = trumpVotes, color = state)) +
   geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
   scale_x_log10(labels = percent_format(accuracy = 1)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = '% Foreigners in Population', y = '% Votes for Trump',
+  labs(x = 'Log % Foreigners in Population', y = '% Votes for Trump',
        color = 'State')
+ggsave(filename = 'plot_lin_foreign_state.png', plot = last_plot(), width = 10, height = 6)
 
-
+ggplot(main, aes(x = vet2016 / 100, y = trumpVotes, color = state)) +
+  geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, lwd = 1.2) +
+  scale_x_log10(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(x = 'Log % Veterans in Population', y = '% Votes for Trump',
+       color = 'State')
+ggsave(filename = 'plot_lin_vet_state.png', plot = last_plot(), width = 10, height = 6)
