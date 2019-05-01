@@ -1,4 +1,4 @@
-### Logistic Regression
+### 2. Logistic Regression Part 1 - Presidential Election (Republicans)
 ## Refer to https://github.com/shenlim/MSCI3250/wiki/Logistic-Regression
 library(dplyr)
 library(ggplot2)
@@ -18,8 +18,7 @@ srcUnemp <- read.csv('county_unemployment.csv', stringsAsFactors = FALSE)
 srcPop <- read.csv('county_population.csv', stringsAsFactors = FALSE)
 
 ## SECTION 2. Data Cleanup and Merging
-pres <- select(srcPresident, fips = combined_fips, state = state_abbr,
-               county = county_name,
+pres <- select(srcPresident, fips = combined_fips, state = state_abbr, county = county_name,
                votesDem12 = votes_dem_2012, votesRep12 = votes_gop_2012,
                votesDem16 = votes_dem_2016, votesRep16 = votes_gop_2016) %>%
   mutate(county = tolower(gsub(' County', '', county)))
@@ -28,40 +27,43 @@ demogrSomeF <- function(...) {
   states <- gsub('\"', '', toupper(sapply(substitute(list(...)), deparse)[-1]))
 	
 	demogrSome <- filter(srcDemogr, state_abbreviation %in% states) %>%
-	  select(state = state_abbreviation, county = area_name,
-	         income = INC110213, education = EDU685213, density = POP060210,
-	         white = RHI825214, hispanic = RHI725214, household = HSD310213) %>%
+	  select(state = state_abbreviation, county = area_name, income = INC110213,
+	         education = EDU685213, white = RHI825214, hispanic = RHI725214,
+	         old = AGE775214, foreign = POP645213) %>%
 	  mutate(county = tolower(gsub(' County', '', county)))
 	
 	assign('demogrSome', demogrSome, envir = globalenv())
 }
-# Select one of four US regions:
-# Midwest (12):
-demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
-# State names for choroplethR 'state_zoom':
-states <- c('illinois', 'indiana', 'iowa', 'kansas', 'michigan', 'minnesota', 'missouri',
-            'nebraska', 'north dakota', 'ohio', 'south dakota', 'wisconsin')
 
+# Select one of four US regions:
 # Northeast (9):
 demogrSomeF(CT, ME, MA, NH, NJ, NY, PA, RI, VT)
-# State names for choroplethR 'state_zoom':
+# Proper state names for choroplethR 'state_zoom':
 states <- c('connecticut', 'maine', 'massachusetts', 'new hampshire', 'new jersey',
             'new york', 'pennsylvania', 'rhode island', 'vermont')
 
 # South (16):
 demogrSomeF(AL, AR, DE, FL, GA, KY, LA, MD, MS, NC, OK, SC, TN, TX, VA, WV)
-# State names for choroplethR 'state_zoom':
-states <- c('alabama', 'arkansas', 'delaware', 'florida', 'georgia',
-            'kentucky', 'louisiana', 'maryland', 'mississippi', 'north carolina',
-            'oklahoma', 'south carolina', 'tennessee', 'texas', 'virginia', 'west virginia')
+# Proper state names for choroplethR 'state_zoom':
+states <- c('alabama', 'arkansas', 'delaware', 'florida', 'georgia', 'kentucky', 'louisiana',
+            'maryland', 'mississippi', 'north carolina', 'oklahoma', 'south carolina',
+            'tennessee', 'texas', 'virginia', 'west virginia')
 
 # West (13):
 demogrSomeF(AK, AZ, CA, CO, HI, ID, MT, NV, NM, OR, UT, WA, WY)
-# State names for choroplethR 'state_zoom':
-states <- c('alaska', 'arizona', 'california', 'colorado', 'hawaii',
-            'idaho', 'montana', 'nevada', 'new mexico', 'oregon',
-            'utah', 'washington', 'wyoming')
+# Proper state names for choroplethR 'state_zoom':
+states <- c('alaska', 'arizona', 'california', 'colorado', 'hawaii', 'idaho', 'montana',
+            'nevada', 'new mexico', 'oregon', 'utah', 'washington', 'wyoming')
 
+# Midwest (12):
+demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
+# Proper state names for choroplethR 'state_zoom':
+states <- c('illinois', 'indiana', 'iowa', 'kansas', 'michigan', 'minnesota', 'missouri',
+            'nebraska', 'north dakota', 'ohio', 'south dakota', 'wisconsin')
+
+# Important: The rest of the script were tested using 'Midwest' as the region. As such, the
+# model interpretations may be different if the user uses a different region. For the first
+# run-through, using the 'Midwest' region is recommended.
 # Merge other data sets
 unemp <- mutate(srcUnemp, county = tolower(county))
 rgdp <- mutate(srcRgdp, county = tolower(county))
@@ -69,7 +71,8 @@ pop <- mutate(srcPop, county = tolower(county))
 
 main <- merge(merge(merge(merge(pres, demogrSome), unemp), rgdp), pop)
 
-rm(pres, demogrSome, unemp, rgdp, pop)
+# Remove objects we'll not be using
+rm(list = c('pres', 'unemp', 'rgdp', 'pop', ls(pattern = '^src|^demo')))
 
 ## SECTION 3. Calculate Unemployment Change, Rgdp Change, 2016 winner
 main$unempDelta <- (main$unemp_rate15 - main$unemp_rate12) / main$unemp_rate12
@@ -99,17 +102,21 @@ upData <- upSample(x = trainData[!(names(trainData) %in% c('winner16'))],
 ## SECTION 5. Logistic Regression Model
 logReg <- glm(Class ~ income + education, family = 'binomial', data = upData)
 summary(logReg)
+# Intepret coefficients as odds factors by exponentiating the log of odds
 exp(coef(logReg))
 
-# Apply model on test dataset
+# Apply model on test dataset and determine accuracy
 predict <- predict(logReg, newdata = testData, type = 'response')
 cutoff <- table(main$winner16)['0'][[1]] / nrow(main)
 winPredictions <- ifelse(predict > cutoff, 1, 0)
 mean(winPredictions == testData$winner16)
 
-# Assess model fit
+# Assess model fit. Is the model significantly better than a null model (0 predictors)?
+# Chi-Square Test
 with(logReg, null.deviance - deviance)
+# Degrees of freedom
 with(logReg, df.null - df.residual)
+# Chi-Square P-Value
 with(logReg, pchisq(null.deviance - deviance, df.null - df.residual,
                     lower.tail = FALSE))
 
@@ -171,52 +178,59 @@ logPlot <- function(metric, xlab, percent) {
          fill = 'Party', color = 'State')
 }
 
+# Income
+# Notice the relatively horizontal and flat sigmoid curve. There is no significant correlation
+# or pattern between median income and the probability of Republicans winning.
+logReg <- glm(Class ~ income, family = 'binomial', data = upData)
+main$prob <- predict(logReg, newdata = main, type = 'response')
+main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
+
+logPlot(income, 'Median Income ($)', percent = FALSE)
+ggsave(filename = 'plot_log_rep_income.png', plot = last_plot(), width = 10, height = 6)
+
 # Education
+# The probability of Republicans winning decreases as the % of population with a Bachelor's
+# degree or higher increases.
 logReg <- glm(Class ~ education, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(education, '% Population with Bachelor\'s or Higher', percent = TRUE)
-ggsave(filename = 'plot_log_education.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_education.png', plot = last_plot(), width = 10, height = 6)
 
 # Hispanic
+# The correlation between Hispanic populations and P(Republican Win) is relatively insignificant.
+# Counties with higher % of Hispanics in population tend to disfavor the Republican party.
 logReg <- glm(Class ~ hispanic, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(hispanic, '% Hispanic or Latino Population', percent = TRUE)
-ggsave(filename = 'plot_log_hispanic.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_hispanic.png', plot = last_plot(), width = 10, height = 6)
 
 # White
+# The probability of Republicans winning increases in areas of very high % of whites in population.
 logReg <- glm(Class ~ white, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(white, '% White Population', percent = TRUE)
-ggsave(filename = 'plot_log_white.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_white.png', plot = last_plot(), width = 10, height = 6)
 
-# We'll add a two more interesting demographic data to the 'main' data frame:
-# AGE775214: Persons 65 years and over, percent, 2014
-# POP645213: Foreign born persons, percent, 2009-2013
-main <- merge(main, select(srcDemogr, fips = fips, old = AGE775214, foreign = POP645213),
-              by = 'fips')
-
-# We'll also need to update the prediction model:
-trainData <- main[trainDataIndex, ]
-testData <- main[- trainDataIndex, ]
-upData <- upSample(x = trainData[!(names(trainData) %in% c('winner16'))],
-                   y = trainData$winner16)
-
-# Old: Notice that 'older' counties tend to heavily favor the Republican party!
+# Old
+# Notice that 'older' counties tend to heavily favor the Republican party!
 logReg <- glm(Class ~ old, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(old, '% of Population aged 65 and over', percent = TRUE)
+ggsave(filename = 'plot_log_rep_old.png', plot = last_plot(), width = 10, height = 6)
 
-# Foreign: Notice that counties high in foreign born persons tend to favor Democrats.
+# Foreign
+# Notice that counties high in foreign born persons tend to favor Democrats.
 logReg <- glm(Class ~ foreign, family = 'binomial', data = upData)
 main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(foreign, '% Foreign Born Persons in Population', percent = TRUE)
+ggsave(filename = 'plot_log_rep_foreign.png', plot = last_plot(), width = 10, height = 6)
