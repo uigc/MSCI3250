@@ -61,8 +61,8 @@ demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
 states <- c('illinois', 'indiana', 'iowa', 'kansas', 'michigan', 'minnesota', 'missouri',
             'nebraska', 'north dakota', 'ohio', 'south dakota', 'wisconsin')
 
-# Important: The rest of the script were tested using 'Midwest' as the region. As such, the
-# model interpretations may be different if the user uses a different region. For the first
+# Important: The rest of the script were on the 'Midwest' region. As such, the model and
+# result interpretations may be different if the user uses a different region. For the first
 # run-through, using the 'Midwest' region is recommended.
 # Merge other data sets
 unemp <- mutate(srcUnemp, county = tolower(county))
@@ -88,14 +88,12 @@ rm(trainDataIndex, trainData, testData, upData, logReg)
 
 set.seed(42)
 trainDataIndex <- createDataPartition(main$winner16, p = 0.7, list = FALSE)
-
 trainData <- main[trainDataIndex, ]
 testData <- main[- trainDataIndex, ]
 
 # Determine class bias
 table(main$winner16)
 table(trainData$winner16)
-
 upData <- upSample(x = trainData[!(names(trainData) %in% c('winner16'))],
                    y = trainData$winner16)
 
@@ -130,6 +128,7 @@ county_choropleth(mapDf, state_zoom = states, title = '2016 Actual Results') +
   scale_fill_manual(values = alpha(c('blue', 'red'), 0.6),
                     labels = c('D', 'R'),
                     name = 'Party')
+ggsave(filename = 'plot_map_01.png', plot = last_plot(), width = 10, height = 6)
 
 # Plot predicted results based on 'education' and 'income'
 predictDf <- data.frame(region = main$fips,
@@ -140,6 +139,7 @@ county_choropleth(predictDf, state_zoom = states, title = '2016 Predictions') +
 	scale_fill_manual(values = alpha(c('blue', 'red'), 0.6),
 	                  labels = c('D', 'R'),
 	                  name = 'Party')
+ggsave(filename = 'plot_map_02.png', plot = last_plot(), width = 10, height = 6)
 
 # Plot accuracy
 accuracyDf <- data.frame(region = main$fips,
@@ -150,6 +150,7 @@ county_choropleth(accuracyDf, state_zoom = states, title = 'Model Accuracy') +
   scale_fill_manual(values = alpha(c('green', 'red'), 0.6),
                     labels = c('Correct', 'Wrong'),
                     name = 'Result')
+ggsave(filename = 'plot_map_03.png', plot = last_plot(), width = 10, height = 6)
 
 ## SECTION 7. Plot Logistic Regression Models
 # We'll build a function to plot consistent logistic regression plots. The function has
@@ -186,7 +187,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(income, 'Median Income ($)', percent = FALSE)
-ggsave(filename = 'plot_log_rep_income.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_01.png', plot = last_plot(), width = 10, height = 6)
 
 # Education
 # The probability of Republicans winning decreases as the % of population with a Bachelor's
@@ -196,7 +197,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(education, '% Population with Bachelor\'s or Higher', percent = TRUE)
-ggsave(filename = 'plot_log_rep_education.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_02.png', plot = last_plot(), width = 10, height = 6)
 
 # Hispanic
 # The correlation between Hispanic populations and P(Republican Win) is relatively insignificant.
@@ -206,7 +207,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(hispanic, '% Hispanic or Latino Population', percent = TRUE)
-ggsave(filename = 'plot_log_rep_hispanic.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_03.png', plot = last_plot(), width = 10, height = 6)
 
 # White
 # The probability of Republicans winning increases in areas of very high % of whites in population.
@@ -215,7 +216,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(white, '% White Population', percent = TRUE)
-ggsave(filename = 'plot_log_rep_white.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_04.png', plot = last_plot(), width = 10, height = 6)
 
 # Old
 # Notice that 'older' counties tend to heavily favor the Republican party!
@@ -224,7 +225,7 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(old, '% of Population aged 65 and over', percent = TRUE)
-ggsave(filename = 'plot_log_rep_old.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_05.png', plot = last_plot(), width = 10, height = 6)
 
 # Foreign
 # Notice that counties high in foreign born persons tend to favor Democrats.
@@ -233,4 +234,4 @@ main$prob <- predict(logReg, newdata = main, type = 'response')
 main$predict <- ifelse(predict(logReg, newdata = main, type = 'response') > cutoff, 1, 0)
 
 logPlot(foreign, '% Foreign Born Persons in Population', percent = TRUE)
-ggsave(filename = 'plot_log_rep_foreign.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_log_rep_06.png', plot = last_plot(), width = 10, height = 6)

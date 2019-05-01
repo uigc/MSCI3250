@@ -36,8 +36,8 @@ demogrSomeF(AK, AZ, CA, CO, HI, ID, MT, NV, NM, OR, UT, WA, WY)
 # Midwest:
 demogrSomeF(IL, IN, IA, KS, MI, MN, MO, NE, ND, OH, SD, WI)
 
-# Important: The rest of the script were tested using 'Midwest' as the region. As such, the
-# model interpretations may be different if the user uses a different region. For the first
+# Important: The rest of the script were on the 'Midwest' region. As such, the model and
+# result interpretations may be different if the user uses a different region. For the first
 # run-through, using the 'Midwest' region is recommended.
 main <- merge(merge(demogrSome, select(srcElections, -c('state', 'county')), by = 'fips'),
               select(srcUnemp, -c('state', 'county')), by = 'fips')
