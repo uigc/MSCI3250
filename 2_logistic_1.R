@@ -29,7 +29,7 @@ demogrSomeF <- function(...) {
 	demogrSome <- filter(srcDemogr, state_abbreviation %in% states) %>%
 	  select(state = state_abbreviation, county = area_name, income = INC110213,
 	         education = EDU685213, white = RHI825214, hispanic = RHI725214,
-	         old = AGE775214, foreign = POP645213) %>%
+	         old = AGE775214, foreign = POP645213, density = POP060210) %>%
 	  mutate(county = tolower(gsub(' County', '', county)))
 	
 	assign('demogrSome', demogrSome, envir = globalenv())
@@ -49,10 +49,10 @@ states <- c('alabama', 'arkansas', 'delaware', 'florida', 'georgia', 'kentucky',
             'maryland', 'mississippi', 'north carolina', 'oklahoma', 'south carolina',
             'tennessee', 'texas', 'virginia', 'west virginia')
 
-# West (13):
-demogrSomeF(AK, AZ, CA, CO, HI, ID, MT, NV, NM, OR, UT, WA, WY)
+# West (11):
+demogrSomeF(AZ, CA, CO, ID, MT, NV, NM, OR, UT, WA, WY)
 # Proper state names for choroplethR 'state_zoom':
-states <- c('alaska', 'arizona', 'california', 'colorado', 'hawaii', 'idaho', 'montana',
+states <- c('arizona', 'california', 'colorado', 'idaho', 'montana',
             'nevada', 'new mexico', 'oregon', 'utah', 'washington', 'wyoming')
 
 # Midwest (12):
@@ -98,7 +98,7 @@ upData <- upSample(x = trainData[!(names(trainData) %in% c('winner16'))],
                    y = trainData$winner16)
 
 ## SECTION 5. Logistic Regression Model
-logReg <- glm(Class ~ income + education, family = 'binomial', data = upData)
+logReg <- glm(Class ~ income + education + old + density, family = 'binomial', data = upData)
 summary(logReg)
 # Intepret coefficients as odds factors by exponentiating the log of odds
 exp(coef(logReg))
@@ -128,7 +128,7 @@ county_choropleth(mapDf, state_zoom = states, title = '2016 Actual Results') +
   scale_fill_manual(values = alpha(c('blue', 'red'), 0.6),
                     labels = c('D', 'R'),
                     name = 'Party')
-ggsave(filename = 'plot_map_01.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_map_01.png', plot = last_plot(), width = 5, height = 3)
 
 # Plot predicted results based on 'education' and 'income'
 predictDf <- data.frame(region = main$fips,
@@ -139,7 +139,7 @@ county_choropleth(predictDf, state_zoom = states, title = '2016 Predictions') +
 	scale_fill_manual(values = alpha(c('blue', 'red'), 0.6),
 	                  labels = c('D', 'R'),
 	                  name = 'Party')
-ggsave(filename = 'plot_map_02.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_map_02.png', plot = last_plot(), width = 5, height = 3)
 
 # Plot accuracy
 accuracyDf <- data.frame(region = main$fips,
@@ -148,9 +148,9 @@ accuracyDf <- data.frame(region = main$fips,
 
 county_choropleth(accuracyDf, state_zoom = states, title = 'Model Accuracy') +
   scale_fill_manual(values = alpha(c('green', 'red'), 0.6),
-                    labels = c('Correct', 'Wrong'),
+                    labels = c('Correct', 'Incorrect'),
                     name = 'Result')
-ggsave(filename = 'plot_map_03.png', plot = last_plot(), width = 10, height = 6)
+ggsave(filename = 'plot_map_03.png', plot = last_plot(), width = 5, height = 3)
 
 ## SECTION 7. Plot Logistic Regression Models
 # We'll build a function to plot consistent logistic regression plots. The function has
